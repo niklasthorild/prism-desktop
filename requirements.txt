@@ -1,4 +1,5 @@
 PyQt6>=6.6.0
+PyQt6-Wayland>=6.6.0; sys_platform == 'linux'
 pystray>=0.19.5
 aiohttp>=3.9.0
 Pillow>=10.0.0

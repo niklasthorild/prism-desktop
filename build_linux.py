@@ -66,16 +66,27 @@ def find_appimagetool(arch):
 
 
 def build_binary(base_dir):
-    """Build the standalone binary using PyInstaller."""
-    # Ensure PyInstaller is installed
-    try:
-        import PyInstaller  # noqa: F401
-    except ImportError:
-        print("Installing PyInstaller...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'], check=True)
+    """Build the standalone binary using PyInstaller in a clean virtual environment."""
+    venv_dir = base_dir / '.build_venv'
+    
+    print("Setting up clean virtual environment...")
+    # Create venv
+    subprocess.run([sys.executable, '-m', 'venv', str(venv_dir)], check=True)
+    
+    # Get venv python path
+    if sys.platform == 'win32':
+        venv_python = venv_dir / 'Scripts' / 'python.exe'
+    else:
+        venv_python = venv_dir / 'bin' / 'python'
+        
+    print("Installing requirements into virtual environment...")
+    # Install dependencies from requirements.txt, plus pyinstaller
+    requirements_file = base_dir / 'requirements.txt'
+    pip_install_args = [str(venv_python), '-m', 'pip', 'install', '-r', str(requirements_file), 'pyinstaller']
+    subprocess.run(pip_install_args, check=True)
 
     pyinstaller_args = [
-        sys.executable, '-m', 'PyInstaller',
+        str(venv_python), '-m', 'PyInstaller',
         'main.py',
         '--name=PrismDesktop',
         '--onefile',
