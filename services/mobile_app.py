@@ -177,6 +177,12 @@ async def _update_registration(ha_url: str, webhook_id: str) -> bool:
     payload = {
         "type": "update_registration",
         "data": {
+            "app_version": "1.0",
+            "device_name": _get_device_name(),
+            "manufacturer": MANUFACTURER,
+            "model": MODEL,
+            "os_name": OS_NAME,
+            "os_version": OS_VERSION,
             "app_data": {
                 "push_websocket_channel": True,
             },
