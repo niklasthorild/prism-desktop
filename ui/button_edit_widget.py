@@ -312,7 +312,29 @@ class ButtonEditWidget(QWidget):
         self.lock_action_label.setVisible(False)
         self.lock_action_combo.setVisible(False)
         self.form.addRow(self.lock_action_label, self.lock_action_combo)
-        
+
+        # Script Arguments (Script Only)
+        self.script_args_label = QLabel("Arguments:")
+        self.script_args_label.setVisible(False)
+        self.script_arg_rows = []
+
+        self.script_args_widget = QWidget()
+        script_args_layout = QVBoxLayout(self.script_args_widget)
+        script_args_layout.setContentsMargins(0, 0, 0, 0)
+        script_args_layout.setSpacing(6)
+
+        self.script_args_container = QVBoxLayout()
+        self.script_args_container.setSpacing(4)
+        script_args_layout.addLayout(self.script_args_container)
+
+        self.script_add_arg_btn = QPushButton("+ Add Argument")
+        self.script_add_arg_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.script_add_arg_btn.clicked.connect(lambda: self._add_script_arg_row())
+        script_args_layout.addWidget(self.script_add_arg_btn)
+
+        self.script_args_widget.setVisible(False)
+        self.form.addRow(self.script_args_label, self.script_args_widget)
+
         # 3D Printer specific fields
         self.printer_state_label = QLabel("State Entity:")
         self.printer_state_combo = self._create_entity_combo()
@@ -659,7 +681,12 @@ class ButtonEditWidget(QWidget):
         is_lock = current_type == 'lock'
         self.lock_action_combo.setVisible(is_lock)
         self.lock_action_label.setVisible(is_lock)
-        
+
+        # Show script specific controls
+        is_script = current_type == 'script'
+        self.script_args_label.setVisible(is_script)
+        self.script_args_widget.setVisible(is_script)
+
         # Show 3D printer specific controls
         is_printer = current_type == '3d_printer'
         self.printer_state_label.setVisible(is_printer)
@@ -722,6 +749,50 @@ class ButtonEditWidget(QWidget):
         # Notify that the layout requirements may have changed
         self.size_changed.emit()
     
+    def _add_script_arg_row(self, key="", value=""):
+        """Add a key-value argument row for script variables."""
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+
+        key_input = QLineEdit()
+        key_input.setPlaceholderText("Variable name")
+        key_input.setText(key)
+        row_layout.addWidget(key_input, 1)
+
+        value_input = QLineEdit()
+        value_input.setPlaceholderText("Value")
+        value_input.setText(value)
+        row_layout.addWidget(value_input, 1)
+
+        remove_btn = QPushButton("✕")
+        remove_btn.setFixedSize(28, 28)
+        remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        row_layout.addWidget(remove_btn)
+
+        row_entry = {'widget': row_widget, 'key_input': key_input, 'value_input': value_input}
+        remove_btn.clicked.connect(lambda: self._remove_script_arg_row(row_entry))
+
+        self.script_arg_rows.append(row_entry)
+        self.script_args_container.addWidget(row_widget)
+        self.size_changed.emit()
+
+    def _remove_script_arg_row(self, row_entry):
+        """Remove a script argument row."""
+        if row_entry in self.script_arg_rows:
+            self.script_arg_rows.remove(row_entry)
+            row_entry['widget'].setParent(None)
+            row_entry['widget'].deleteLater()
+            self.size_changed.emit()
+
+    def _clear_script_arg_rows(self):
+        """Remove all script argument rows."""
+        for row_entry in self.script_arg_rows[:]:
+            row_entry['widget'].setParent(None)
+            row_entry['widget'].deleteLater()
+        self.script_arg_rows.clear()
+
     def _set_appearance_enabled(self, enabled: bool):
         """Enable or disable appearance section widgets."""
         # Grey out appearance header
@@ -792,6 +863,11 @@ class ButtonEditWidget(QWidget):
         # Automation settings
         automation_action = self.config.get('action', 'toggle')
         self.automation_action_combo.setCurrentIndex(1 if automation_action == 'trigger' else 0)
+
+        # Script arguments
+        self._clear_script_arg_rows()
+        for key, value in self.config.get('script_variables', {}).items():
+            self._add_script_arg_row(key, str(value))
 
         # Lock settings
         lock_action = self.config.get('action', 'toggle')
@@ -866,6 +942,25 @@ class ButtonEditWidget(QWidget):
             # Sync camera_size to span for compatibility
             new_config['camera_size'] = new_config['span_x']
              
+        if new_config['type'] == 'script':
+            variables = {}
+            for row in self.script_arg_rows:
+                key = row['key_input'].text().strip()
+                value = row['value_input'].text().strip()
+                if key:
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        try:
+                            value = float(value)
+                        except ValueError:
+                            pass
+                    variables[key] = value
+            if variables:
+                new_config['script_variables'] = variables
+            else:
+                new_config.pop('script_variables', None)
+
         if new_config['type'] == 'automation':
             new_config['action'] = 'trigger' if self.automation_action_combo.currentIndex() == 1 else 'toggle'
 

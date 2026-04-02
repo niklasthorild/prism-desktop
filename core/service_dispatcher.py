@@ -46,7 +46,14 @@ class ServiceDispatcher:
             service = config.get('action', 'media_play_pause')
         elif btn_type == 'script':
             domain = 'script'
-            service = 'turn_on'
+            variables = config.get('script_variables', {})
+            if variables:
+                # Call script directly by name so variables are passed as top-level data
+                service = entity_id.replace('script.', '', 1)
+                data = variables
+                entity_id = None
+            else:
+                service = 'turn_on'
         elif btn_type == 'automation':
             domain = 'automation'
             service = 'trigger' if config.get('action') == 'trigger' else 'toggle'
