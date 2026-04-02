@@ -26,6 +26,7 @@ class ButtonEditWidget(QWidget):
         ("Cover", "curtain"),
         ("Fan", "fan"),
         ("Input Number", "input_number"),
+        ("Lawn Mower", "lawn_mower"),
         ("Light / Switch", "switch"),
         ("Lock", "lock"),
         ("Media Player", "media_player"),
@@ -525,7 +526,8 @@ class ButtonEditWidget(QWidget):
             'scene': {'scene'},
             'camera': {'camera'},
             'weather': {'weather'},
-            'lock': {'lock'}
+            'lock': {'lock'},
+            'lawn_mower': {'lawn_mower'}
         }
         allowed_domains = domain_map.get(current_type)
         

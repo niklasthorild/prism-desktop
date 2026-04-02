@@ -156,6 +156,9 @@ class Icons:
     PRINTER_3D_NOZZLE = "\U000F0E46"   # mdi-printer-3d-nozzle
     RADIATOR = "\U000F0445"            # mdi-radiator (used for heat bed)
 
+    # Lawn Mower
+    MOWER = "\U000F11F7"               # mdi-robot-mower
+
 # --- MDI Mapping Logic ---
 
 # --- MDI Mapping Logic ---

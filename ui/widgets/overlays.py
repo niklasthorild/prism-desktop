@@ -2054,7 +2054,7 @@ class CameraOverlay(QWidget):
         speed = 0.9 if self._border_effect == 'Prism Shard' else 1.5
         if self._border_effect == 'Liquid Mercury': speed = 1.2
         angle = self._border_progress * 360.0 * speed
-        
+
         opacity = 1.0
         if self._border_progress > 0.8:
             opacity = (1.0 - self._border_progress) / 0.2
@@ -2063,13 +2063,380 @@ class CameraOverlay(QWidget):
         gradient = QConicalGradient(QPointF(rect.center()), angle)
         for i, color in enumerate(colors):
             gradient.setColorAt(i / (len(colors) - 1), QColor(color))
-        
+
         pen = QPen()
-        pen.setWidth(2) 
+        pen.setWidth(2)
         pen.setBrush(QBrush(gradient))
-        
+
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        
+
         border_rect = QRectF(rect).adjusted(1, 1, -1, -1)
         painter.drawRoundedRect(border_rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
+
+
+class MowerOverlay(QWidget):
+    """
+    Overlay for lawn mower control.
+    Shows state, Start/Pause + Dock buttons, and a battery bar.
+    """
+    action_requested = pyqtSignal(str)   # 'start_mowing', 'pause', 'dock'
+    finished = pyqtSignal()
+    morph_changed = pyqtSignal(float)    # 0.0 – 1.0
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.raise_()
+        self.hide()
+
+        self._text = "Mower"
+        self._color = QColor("#4CAF50")       # Default green
+        self._base_color = QColor("#2d2d2d")
+
+        # State
+        self._state = "unknown"
+        self._battery_level = -1.0            # Negative means unavailable
+
+        # UI Rects (calculated in paintEvent)
+        self._btn_close = QRect()
+        self._btn_start_pause = QRect()
+        self._btn_dock = QRect()
+
+        # Hover tracking
+        self.setMouseTracking(True)
+        self._hover_start_pause = False
+        self._hover_dock = False
+
+        # ── Morph animation ──
+        self._morph_progress = 0.0
+        self.anim = QPropertyAnimation(self, b"morph_progress")
+        self.anim.setDuration(MORPH_OPEN_DURATION)
+        self.anim.setEasingCurve(MORPH_OPEN_EASING)
+        self.anim.finished.connect(self.on_anim_finished)
+
+        # ── Border spin animation ──
+        self._border_progress = 0.0
+        self.anim_border = QPropertyAnimation(self, b"border_progress")
+        self.anim_border.setDuration(BORDER_SPIN_DURATION)
+        self.anim_border.setEasingCurve(BORDER_SPIN_EASING)
+        self._border_effect = 'Rainbow'
+
+        # ── Content fade ──
+        self._content_opacity = 0.0
+        self.content_anim = QPropertyAnimation(self, b"content_opacity")
+        self.content_anim.setDuration(CONTENT_FADE_DURATION)
+        self.content_anim.setEasingCurve(CONTENT_FADE_EASING)
+
+        self._is_closing = False
+        self._start_geom = QRect()
+        self._target_geom = QRect()
+
+    # ── Qt properties ──
+
+    def _is_light_bg(self):
+        c = self._base_color
+        lum = 0.2126 * c.red() + 0.7152 * c.green() + 0.0722 * c.blue()
+        return lum > 140
+
+    def _fg_color(self, alpha=255):
+        if self._is_light_bg():
+            return QColor(0, 0, 0, alpha)
+        return QColor(255, 255, 255, alpha)
+
+    def get_morph_progress(self):
+        return self._morph_progress
+
+    def set_morph_progress(self, val):
+        self._morph_progress = val
+        self.morph_changed.emit(val)
+        current_rect = QRect(
+            int(self._start_geom.x() + (self._target_geom.x() - self._start_geom.x()) * val),
+            int(self._start_geom.y() + (self._target_geom.y() - self._start_geom.y()) * val),
+            int(self._start_geom.width() + (self._target_geom.width() - self._start_geom.width()) * val),
+            int(self._start_geom.height() + (self._target_geom.height() - self._start_geom.height()) * val),
+        )
+        self.setGeometry(current_rect)
+        self.update()
+
+    morph_progress = pyqtProperty(float, get_morph_progress, set_morph_progress)
+
+    def get_border_progress(self):
+        return self._border_progress
+
+    def set_border_progress(self, val):
+        self._border_progress = val
+        self.update()
+
+    border_progress = pyqtProperty(float, get_border_progress, set_border_progress)
+
+    def get_content_opacity(self):
+        return self._content_opacity
+
+    def set_content_opacity(self, val):
+        self._content_opacity = val
+        self.update()
+
+    content_opacity = pyqtProperty(float, get_content_opacity, set_content_opacity)
+
+    def set_border_effect(self, effect: str):
+        self._border_effect = effect
+        self.update()
+
+    # ── State ──
+
+    def update_state(self, state_dict: dict):
+        """Update internal state from an HA state dict."""
+        self._state = state_dict.get('state', 'unknown')
+        attrs = state_dict.get('attributes', {})
+        try:
+            self._battery_level = float(attrs.get('battery_level', -1))
+        except (ValueError, TypeError):
+            self._battery_level = -1.0
+        self.update()
+
+    # ── Morph lifecycle ──
+
+    def start_morph(self, start_geo: QRect, target_geo: QRect, label: str,
+                    color: QColor = None, base_color: QColor = None,
+                    current_state: dict = None):
+        self._start_geom = start_geo
+        self._target_geom = target_geo
+        self.content_anim.setStartValue(0.0)
+        self.content_anim.setEndValue(1.0)
+
+        if current_state:
+            self.update_state(current_state)
+
+        self._text = label
+        self._color = color or QColor("#4CAF50")
+        self._base_color = base_color or QColor("#2d2d2d")
+        self._is_closing = False
+
+        self.setGeometry(start_geo)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+        self.anim.stop()
+        self.anim.setStartValue(0.0)
+        self.anim.setEndValue(1.0)
+        self.anim.setDuration(MORPH_OPEN_DURATION)
+        self.anim.setEasingCurve(MORPH_OPEN_EASING)
+        self.anim.start()
+
+        self.anim_border.stop()
+        self.anim_border.setStartValue(0.0)
+        self.anim_border.setEndValue(1.0)
+        self.anim_border.start()
+
+    def close_morph(self):
+        self._is_closing = True
+        self._content_opacity = 0.0
+        self.update()
+
+        self.anim.stop()
+        self.anim.setDuration(MORPH_CLOSE_DURATION)
+        self.anim.setEasingCurve(MORPH_CLOSE_EASING)
+        self.anim.setStartValue(self._morph_progress)
+        self.anim.setEndValue(0.0)
+        self.anim.start()
+
+    def on_anim_finished(self):
+        if self._is_closing:
+            self.hide()
+            self.finished.emit()
+        else:
+            self.content_anim.start()
+
+    # ── Input ──
+
+    def mousePressEvent(self, event):
+        pos = event.pos()
+        if self._btn_close.contains(pos):
+            self.close_morph()
+        elif self._btn_start_pause.contains(pos):
+            if self._state in ('mowing', 'returning'):
+                self.action_requested.emit('pause')
+            else:
+                self.action_requested.emit('start_mowing')
+        elif self._btn_dock.contains(pos):
+            self.action_requested.emit('dock')
+
+    def mouseMoveEvent(self, event):
+        pos = event.pos()
+        new_sp = self._btn_start_pause.contains(pos)
+        new_dk = self._btn_dock.contains(pos)
+        if new_sp != self._hover_start_pause or new_dk != self._hover_dock:
+            self._hover_start_pause = new_sp
+            self._hover_dock = new_dk
+            self.update()
+
+    def leaveEvent(self, event):
+        self._hover_start_pause = False
+        self._hover_dock = False
+        self.update()
+
+    # ── Painting ──
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Close fade
+        if self._is_closing:
+            if self._morph_progress < CLOSE_FADE_START:
+                t = self._morph_progress / CLOSE_FADE_START
+                painter.setOpacity(t ** CLOSE_FADE_EXPONENT)
+
+        rect = self.rect()
+
+        # Background
+        painter.setBrush(self._base_color)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
+
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+
+        # Border animation
+        if self.anim_border.state() == QPropertyAnimation.State.Running:
+            if self._border_effect == 'Rainbow':
+                self._draw_rainbow_border(painter, rect)
+            elif self._border_effect == 'Aurora Borealis':
+                self._draw_aurora_border(painter, rect)
+            elif self._border_effect == 'Prism Shard':
+                self._draw_prism_shard_border(painter, rect)
+            elif self._border_effect == 'Liquid Mercury':
+                self._draw_liquid_mercury_border(painter, rect)
+
+        painter.setOpacity(1.0)
+        base_alpha = int(255 * self._morph_progress)
+        alpha = int(base_alpha * self._content_opacity)
+        if alpha < 10:
+            return
+
+        padding = 16
+        fg = self._fg_color(alpha)
+        dim_fg = self._fg_color(int(alpha * 0.5))
+
+        # ── Close button (X) top-right ──
+        close_size = 20
+        self._btn_close = QRect(rect.width() - close_size - padding, padding, close_size, close_size)
+        painter.setFont(get_mdi_font(18))
+        painter.setPen(dim_fg)
+        painter.drawText(self._btn_close, Qt.AlignmentFlag.AlignCenter, get_icon('close'))
+
+        # ── State text ──
+        state_display = self._state.replace('_', ' ').capitalize()
+        painter.setFont(QFont(SYSTEM_FONT, 13, QFont.Weight.Bold))
+        painter.setPen(fg)
+        state_rect = QRectF(padding, padding, rect.width() - padding * 2 - close_size, 24)
+        painter.drawText(state_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, state_display)
+
+        # ── Action buttons (vertically centred) ──
+        btn_h = 36
+        gap = 8
+        avail_w = rect.width() - padding * 2
+        btn_w = (avail_w - gap) / 2
+        btn_y = padding + 24 + (rect.height() - padding * 2 - 24 - 4 - btn_h) / 2
+
+        # Start/Pause button
+        is_active = self._state in ('mowing', 'returning')
+        sp_rect = QRectF(padding, btn_y, btn_w, btn_h)
+        self._btn_start_pause = sp_rect.toAlignedRect()
+
+        sp_color = QColor(self._color)
+        if self._hover_start_pause:
+            sp_color = sp_color.lighter(120)
+        sp_color.setAlpha(alpha)
+
+        path_sp = QPainterPath()
+        path_sp.addRoundedRect(sp_rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(sp_color)
+        painter.drawPath(path_sp)
+
+        sp_icon = get_icon('pause') if is_active else get_icon('play')
+        sp_label = "Pause" if is_active else "Start"
+        painter.setPen(self._fg_color(alpha))
+        painter.setFont(get_mdi_font(16))
+        icon_x = sp_rect.x() + 12
+        painter.drawText(QRectF(icon_x, sp_rect.y(), 20, btn_h),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, sp_icon)
+        painter.setFont(QFont(SYSTEM_FONT, 11, QFont.Weight.DemiBold))
+        painter.drawText(QRectF(icon_x + 22, sp_rect.y(), btn_w - 34, btn_h),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, sp_label)
+
+        # Dock button
+        dk_rect = QRectF(padding + btn_w + gap, btn_y, btn_w, btn_h)
+        self._btn_dock = dk_rect.toAlignedRect()
+
+        dk_fill = self._fg_color(int(alpha * 0.12) if not self._hover_dock else int(alpha * 0.20))
+        path_dk = QPainterPath()
+        path_dk.addRoundedRect(dk_rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(dk_fill)
+        painter.drawPath(path_dk)
+
+        dk_icon = get_icon('home')
+        painter.setPen(self._fg_color(alpha))
+        painter.setFont(get_mdi_font(16))
+        icon_x2 = dk_rect.x() + 12
+        painter.drawText(QRectF(icon_x2, dk_rect.y(), 20, btn_h),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, dk_icon)
+        painter.setFont(QFont(SYSTEM_FONT, 11, QFont.Weight.DemiBold))
+        painter.drawText(QRectF(icon_x2 + 22, dk_rect.y(), btn_w - 34, btn_h),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, "Dock")
+
+        # ── Battery bar at bottom ──
+        if self._battery_level >= 0:
+            if self._battery_level > 50:
+                bar_color = QColor("#34A853")
+            elif self._battery_level > 20:
+                bar_color = QColor("#FBBC05")
+            else:
+                bar_color = QColor("#EA4335")
+            bar_color.setAlpha(alpha)
+            DashboardButtonPainter.draw_bottom_bar(
+                painter, QRectF(rect), self._battery_level, 100.0, bar_color
+            )
+
+        painter.end()
+
+    # ── Border drawing (shared pattern) ──
+
+    def _draw_rainbow_border(self, painter, rect):
+        colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#4285F4"]
+        self._draw_gradient_border(painter, rect, colors)
+
+    def _draw_aurora_border(self, painter, rect):
+        colors = ["#00C896", "#0078FF", "#8C00FF", "#0078FF", "#00C896"]
+        self._draw_gradient_border(painter, rect, colors)
+
+    def _draw_prism_shard_border(self, painter, rect):
+        colors = ["#26C6DA", "#EC407A", "#FFCA28", "#CFD8DC", "#26C6DA"]
+        self._draw_gradient_border(painter, rect, colors)
+
+    def _draw_liquid_mercury_border(self, painter, rect):
+        colors = ["#37474F", "#78909C", "#CFD8DC", "#ECEFF1", "#CFD8DC", "#78909C", "#37474F"]
+        self._draw_gradient_border(painter, rect, colors)
+
+    def _draw_gradient_border(self, painter, rect, colors):
+        speed = 0.9 if self._border_effect == 'Prism Shard' else 1.5
+        if self._border_effect == 'Liquid Mercury':
+            speed = 1.2
+        angle = self._border_progress * 360.0 * speed
+        opacity = 1.0
+        if self._border_progress > 0.8:
+            opacity = (1.0 - self._border_progress) / 0.2
+        painter.setOpacity(opacity)
+
+        gradient = QConicalGradient(QPointF(rect.center()), angle)
+        for i, color in enumerate(colors):
+            gradient.setColorAt(i / (len(colors) - 1), QColor(color))
+
+        pen = QPen(QBrush(gradient), 2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1),
+                                OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)

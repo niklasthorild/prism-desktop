@@ -36,6 +36,7 @@ class DashboardButton(QFrame):
     printer_requested = pyqtSignal(int, QRect, dict) # slot, geometry, config
     camera_requested = pyqtSignal(int, QRect, dict) # slot, geometry, config
     volume_requested = pyqtSignal(int, QRect) # slot, geometry (for volume overlay)
+    mower_requested = pyqtSignal(int, QRect) # slot, geometry (for mower overlay)
     volume_scroll = pyqtSignal(str, float) # entity_id, new_volume (for scroll wheel)
     media_command_requested = pyqtSignal(dict)
     resize_requested = pyqtSignal(int, int, int) # slot, span_x, span_y
@@ -343,6 +344,8 @@ class DashboardButton(QFrame):
             self._update_camera_view()
         elif btn_type == '3d_printer':
             self._update_3d_printer_view()
+        elif btn_type == 'lawn_mower':
+            self._update_lawn_mower_view()
         elif btn_type == 'input_number':
             self._update_input_number_view()
         else:
@@ -647,6 +650,17 @@ class DashboardButton(QFrame):
             self.value_label.setFont(get_mdi_font(26))
             self.value_label.setText(Icons.VIDEO)
 
+    def _update_lawn_mower_view(self):
+        """Update lawn mower widget — sensor-style with state text + label."""
+        label = self.config.get('label', '')
+        self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
+        state_str = self._state or 'unknown'
+        self.value_label.setText(state_str.replace('_', ' ').capitalize())
+        self.name_label.setText(label)
+        self.setProperty("type", "lawn_mower")
+        self.value_label.show()
+        self.name_label.show()
+
     def _update_default_view(self, btn_type):
         """Default view for switch, light, lock, etc."""
         label = self.config.get('label', '')
@@ -798,6 +812,9 @@ class DashboardButton(QFrame):
             # State entity logic (e.g. Printing, Paused)
             self.set_state(state.get('state', 'unknown'))
             # Let the painter pull the rest from the dashboard's _entity_states directly
+        elif btn_type == 'lawn_mower':
+            # Raw HA state drives both view text and ON-color styling
+            self.set_state(state.get('state', 'unknown'))
         elif btn_type == 'automation':
             # Update automation state (on/off)
             self.set_state(state.get('state', 'off'))
@@ -996,10 +1013,13 @@ class DashboardButton(QFrame):
             # Long press on media player -> Volume overlay
             self._ignore_release = True
             self.volume_requested.emit(self.slot, rect)
+        elif btn_type == 'lawn_mower':
+            self._ignore_release = True
+            self.mower_requested.emit(self.slot, rect)
         elif btn_type == 'input_number':
             # Long press on input_number -> Enable value scrub mode
             self._input_scrub_mode = True
-            
+
     def mousePressEvent(self, event):
         """Track click start."""
         # Forbidden buttons are completely non-interactive
@@ -1351,6 +1371,10 @@ class DashboardButton(QFrame):
                  global_pos = self.mapToGlobal(QPoint(0,0))
                  rect = QRect(global_pos, self.size())
                  self.printer_requested.emit(self.slot, rect, self.config)
+             elif self.config and self.config.get('type') == 'lawn_mower':
+                 global_pos = self.mapToGlobal(QPoint(0,0))
+                 rect = QRect(global_pos, self.size())
+                 self.mower_requested.emit(self.slot, rect)
              elif self.config and self.config.get('type') == 'lock':
                  # Toggle lock state
                  action = 'unlock' if self._state == 'locked' else 'lock'
@@ -1551,5 +1575,9 @@ class DashboardButton(QFrame):
              global_pos = self.mapToGlobal(QPoint(0,0))
              rect = QRect(global_pos, self.size())
              self.printer_requested.emit(self.slot, rect, self.config)
+        elif self.config.get('type') == 'lawn_mower':
+             global_pos = self.mapToGlobal(QPoint(0,0))
+             rect = QRect(global_pos, self.size())
+             self.mower_requested.emit(self.slot, rect)
         else:
              self.clicked.emit(self.config)

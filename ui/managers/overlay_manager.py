@@ -2,7 +2,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QRect, QPoint
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QWidget
 
-from ui.widgets.overlays import DimmerOverlay, ClimateOverlay, PrinterOverlay, WeatherOverlay, CameraOverlay
+from ui.widgets.overlays import DimmerOverlay, ClimateOverlay, PrinterOverlay, WeatherOverlay, CameraOverlay, MowerOverlay
 from ui.widgets.dashboard_button import DashboardButton
 from ui.constants import BUTTON_HEIGHT, BUTTON_SPACING
 
@@ -49,7 +49,12 @@ class OverlayManager(QObject):
         self.camera_overlay = CameraOverlay(parent)
         self.camera_overlay.finished.connect(self.on_camera_finished)
         self.camera_overlay.morph_changed.connect(self.on_morph_changed)
-        
+
+        self.mower_overlay = MowerOverlay(parent)
+        self.mower_overlay.action_requested.connect(self.on_mower_action)
+        self.mower_overlay.finished.connect(self.on_mower_finished)
+        self.mower_overlay.morph_changed.connect(self.on_morph_changed)
+
         # State Tracking
         self._active_dimmer_entity = None
         self._active_dimmer_type = None
@@ -75,7 +80,11 @@ class OverlayManager(QObject):
         self._active_camera_entity = None
         self._camera_source_btn = None
         self._camera_siblings = []
-        
+
+        self._active_mower_entity = None
+        self._mower_source_btn = None
+        self._mower_siblings = []
+
         # Throttling Timers
         self.dimmer_timer = QTimer(self)
         self.dimmer_timer.setInterval(100)
@@ -105,11 +114,12 @@ class OverlayManager(QObject):
             self.on_weather_finished()
     def any_overlay_open(self) -> bool:
         """Return True if any overlay is currently visible."""
-        return (self.dimmer_overlay.isVisible() or 
-                self.climate_overlay.isVisible() or 
-                self.printer_overlay.isVisible() or 
-                self.weather_overlay.isVisible() or 
-                self.camera_overlay.isVisible())
+        return (self.dimmer_overlay.isVisible() or
+                self.climate_overlay.isVisible() or
+                self.printer_overlay.isVisible() or
+                self.weather_overlay.isVisible() or
+                self.camera_overlay.isVisible() or
+                self.mower_overlay.isVisible())
 
     def close_all_overlays_animated(self):
         """Trigger close_morph on all visible overlays instead of instant hide."""
@@ -123,6 +133,8 @@ class OverlayManager(QObject):
             self.weather_overlay.close_morph()
         if self.camera_overlay.isVisible() and not getattr(self.camera_overlay, '_is_closing', False):
             self.camera_overlay.close_morph()
+        if self.mower_overlay.isVisible() and not getattr(self.mower_overlay, '_is_closing', False):
+            self.mower_overlay.close_morph()
 
     def _queue_or_start_overlay(self, method, slot, *args):
         """
@@ -141,7 +153,9 @@ class OverlayManager(QObject):
                 active_btn = self._weather_source_btn
             elif self.camera_overlay.isVisible() and not getattr(self.camera_overlay, '_is_closing', False):
                 active_btn = self._camera_source_btn
-                
+            elif self.mower_overlay.isVisible() and not getattr(self.mower_overlay, '_is_closing', False):
+                active_btn = self._mower_source_btn
+
             if active_btn and active_btn.slot == slot:
                 # Toggle off the current overlay, don't reopen
                 self.close_all_overlays_animated()
@@ -177,6 +191,9 @@ class OverlayManager(QObject):
         if self.camera_overlay.isVisible():
             self.camera_overlay.hide()
             self.on_camera_finished()
+        if self.mower_overlay.isVisible():
+            self.mower_overlay.hide()
+            self.on_mower_finished()
 
     def update_buttons(self, buttons: list):
         """Update reference to buttons."""
@@ -211,6 +228,10 @@ class OverlayManager(QObject):
         # Notify active weather overlay
         if self.weather_overlay.isVisible() and self._active_weather_entity == entity_id:
             self.weather_overlay.update_state(state)
+
+        # Notify active mower overlay
+        if self.mower_overlay.isVisible() and self._active_mower_entity == entity_id:
+            self.mower_overlay.update_state(state)
 
     def update_camera_image(self, entity_id: str, pixmap):
         """Update active overlays with new camera image."""
@@ -282,7 +303,7 @@ class OverlayManager(QObject):
         self.climate_overlay.set_border_effect(effect)
         self.printer_overlay.set_border_effect(effect)
         self.weather_overlay.set_border_effect(effect)
-        
+        self.mower_overlay.set_border_effect(effect)
 
     # ==========================
     # Dimmer / Volume Logic
@@ -431,6 +452,10 @@ class OverlayManager(QObject):
             self._camera_source_btn = source_btn
             source_btn.set_opacity(0.0)
             self._camera_siblings = []
+        elif overlay_type == 'mower':
+            self._mower_source_btn = source_btn
+            source_btn.set_opacity(0.0)
+            self._mower_siblings = []
         else:
             self._dimmer_source_btn = source_btn
             source_btn.set_opacity(0.0)
@@ -503,6 +528,8 @@ class OverlayManager(QObject):
                 self._weather_siblings = filtered_siblings
             elif overlay_type == 'camera':
                 self._camera_siblings = filtered_siblings
+            elif overlay_type == 'mower':
+                self._mower_siblings = filtered_siblings
             else:
                 self._dimmer_siblings = filtered_siblings
                 
@@ -738,7 +765,9 @@ class OverlayManager(QObject):
             btn.set_opacity(opacity)
         for btn in self._camera_siblings:
             btn.set_opacity(opacity)
-        
+        for btn in self._mower_siblings:
+            btn.set_opacity(opacity)
+
         # Fade source button back in during close (overlay fades out, button fades in)
         source_opacity = 1.0 - progress  # 0→1 as progress goes 1→0
         if self._dimmer_source_btn and self.dimmer_overlay._is_closing:
@@ -751,7 +780,9 @@ class OverlayManager(QObject):
             self._weather_source_btn.set_opacity(source_opacity)
         if self._camera_source_btn and self.camera_overlay._is_closing:
             self._camera_source_btn.set_opacity(source_opacity)
-        
+        if self._mower_source_btn and self.mower_overlay._is_closing:
+            self._mower_source_btn.set_opacity(source_opacity)
+
         self.morph_changed.emit(progress)
 
     # ==========================
@@ -862,9 +893,96 @@ class OverlayManager(QObject):
         self._check_pending_actions()
 
     # ==========================
+    # Lawn Mower Logic
+    # ==========================
+
+    def start_mower(self, slot: int, global_rect: QRect):
+        if self._queue_or_start_overlay(self.start_mower, slot, global_rect):
+            return
+
+        source_btn = next((b for b in self.buttons if b.slot == slot), None)
+        if not source_btn or not source_btn.config:
+            return
+        config = source_btn.config
+        entity_id = config.get('entity_id')
+        if not entity_id:
+            return
+
+        self._active_mower_entity = entity_id
+
+        # Colors
+        if self.theme_manager:
+            base_color = QColor(self.theme_manager.get_colors().get('base', '#2d2d2d'))
+        else:
+            base_color = QColor("#2d2d2d")
+        button_color = config.get('color')
+        accent_color = QColor(button_color) if button_color else QColor("#4CAF50")
+        if self.theme_manager and not button_color:
+            accent_color = QColor(self.theme_manager.get_colors().get('accent', '#4CAF50'))
+
+        start_rect = self.parent_widget.mapFromGlobal(global_rect.topLeft())
+        start_rect = QRect(start_rect, global_rect.size())
+
+        target_rect = self._calculate_target_rect_and_siblings(source_btn, slot, overlay_type='mower')
+
+        # Enforce 2-row minimum height
+        min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
+        if target_rect.height() < min_height:
+            target_rect.setHeight(min_height)
+
+            safe_bottom = self.parent_widget.height() - 40
+            if target_rect.bottom() > safe_bottom:
+                if source_btn:
+                    src_pos = source_btn.mapTo(self.parent_widget, QPoint(0, 0))
+                    src_bottom = src_pos.y() + source_btn.height()
+                    target_rect.moveBottom(src_bottom)
+                else:
+                    diff = target_rect.bottom() - safe_bottom
+                    target_rect.moveTop(target_rect.top() - diff)
+
+            for btn in self.buttons:
+                if not btn.isVisible() or btn == source_btn:
+                    continue
+                if btn in self._mower_siblings:
+                    continue
+                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
+                btn_rect = QRect(btn_pos, btn.size())
+                if target_rect.intersects(btn_rect):
+                    self._mower_siblings.append(btn)
+                    btn.set_opacity(0.0)
+
+        current_state = self._entity_states.get(entity_id, {})
+
+        self.mower_overlay.set_border_effect(self._border_effect)
+        self.mower_overlay.start_morph(
+            start_rect, target_rect, config.get('label', 'Mower'),
+            color=accent_color, base_color=base_color,
+            current_state=current_state
+        )
+
+    def on_mower_action(self, action: str):
+        if not self._active_mower_entity:
+            return
+        self.service_request.emit({
+            "service": f"lawn_mower.{action}",
+            "entity_id": self._active_mower_entity
+        })
+
+    def on_mower_finished(self):
+        self._active_mower_entity = None
+        for btn in self._mower_siblings:
+            btn.set_opacity(1.0)
+        self._mower_siblings = []
+        if self._mower_source_btn:
+            self._mower_source_btn.set_opacity(1.0)
+            self._mower_source_btn = None
+        self.parent_widget.activateWindow()
+        self._check_pending_actions()
+
+    # ==========================
     # Weather Logic
     # ==========================
-    
+
     def start_weather(self, slot: int, global_rect: QRect, config: dict, forecasts: list):
         if self._queue_or_start_overlay(self.start_weather, slot, global_rect, config, forecasts):
             return

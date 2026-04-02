@@ -11,7 +11,28 @@ from ui.visuals.background_generator import BackgroundGenerator
 
 class DashboardButtonPainter:
     """Handles custom painting for DashboardButton."""
-    
+
+    @staticmethod
+    def draw_bottom_bar(painter, rect, value, max_value, color, bar_height=4):
+        """Draw a horizontal fill bar at the bottom of a rect.
+
+        Reusable across entity types (3D printer progress, mower battery, etc.).
+
+        Args:
+            painter: Active QPainter instance.
+            rect: QRectF or QRect bounding the area.
+            value: Current fill value (e.g. progress or battery level).
+            max_value: Value that represents 100 % fill.
+            color: QColor for the filled portion.
+            bar_height: Pixel height of the bar (default 4).
+        """
+        if value <= 0 or max_value <= 0:
+            return
+        fraction = min(float(value) / float(max_value), 1.0)
+        bar_y = rect.y() + rect.height() - bar_height
+        fill_w = rect.width() * fraction
+        painter.fillRect(QRectF(rect.x(), bar_y, fill_w, bar_height), color)
+
     @staticmethod
     def paint(button, event):
         """Main paint method."""
@@ -649,12 +670,8 @@ class DashboardButtonPainter:
             painter.drawText(QRectF(text_x, 44, w - text_x - 16, 24), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, stats_str)
             
             # Progress Bar Bottom
-            bar_h = 4
-            bar_y = h - bar_h
-            if progress > 0:
-                fill_w = w * (float(progress) / 100.0)
-                painter.fillRect(QRectF(0, bar_y, fill_w, bar_h), accent_color)
-            
+            DashboardButtonPainter.draw_bottom_bar(painter, QRectF(0, 0, w, h), float(progress), 100.0, accent_color)
+
         elif button.span_y >= 2 and button.span_x == 1:
             # === 1x2: Tall layout ===
             w = rect.width()
@@ -686,11 +703,7 @@ class DashboardButtonPainter:
                  painter.drawText(QRectF(0, 116, w, 20), Qt.AlignmentFlag.AlignCenter, f"{prog_val:.0f}%")
                  
             # Progress Bar Bottom
-            bar_h = 4
-            bar_y = h - bar_h
-            if prog_val > 0:
-                fill_w = w * (prog_val / 100.0)
-                painter.fillRect(QRectF(0, bar_y, fill_w, bar_h), accent_color)
+            DashboardButtonPainter.draw_bottom_bar(painter, QRectF(0, 0, w, h), prog_val, 100.0, accent_color)
             
         else:
             # === 1x1: Compact ===

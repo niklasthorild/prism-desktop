@@ -550,6 +550,7 @@ class Dashboard(QWidget):
         button.weather_requested.connect(self._on_weather_requested)
         button.camera_requested.connect(self._on_camera_requested)
         button.printer_requested.connect(self._on_printer_requested)
+        button.mower_requested.connect(self._on_mower_requested)
         button.volume_requested.connect(self._on_volume_requested)
         button.media_command_requested.connect(self.media_command_requested.emit)
         button.resize_requested.connect(self.handle_button_resize)
@@ -800,6 +801,7 @@ class Dashboard(QWidget):
             button.weather_requested.connect(self._on_weather_requested)
             button.camera_requested.connect(self._on_camera_requested)
             button.printer_requested.connect(self._on_printer_requested)
+            button.mower_requested.connect(self._on_mower_requested)
             button.volume_requested.connect(self._on_volume_requested)
             button.volume_scroll.connect(self.volume_scroll_requested.emit)
             self.grid.addWidget(button, row, col)
@@ -1189,6 +1191,9 @@ class Dashboard(QWidget):
 
     def _on_printer_requested(self, slot: int, rect: QRect, config: dict):
         self.overlay_manager.start_printer(slot, rect, config)
+
+    def _on_mower_requested(self, slot: int, rect: QRect):
+        self.overlay_manager.start_mower(slot, rect)
 
     def _on_camera_requested(self, slot: int, rect: QRect, config: dict):
         self.overlay_manager.start_camera(slot, rect, config)
