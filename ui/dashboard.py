@@ -286,15 +286,44 @@ class Dashboard(QWidget):
             
     def get_anim_height(self):
         return self.height()
+
+    def _get_tray_position(self) -> str:
+        """Return the configured tray anchor position."""
+        return self.config.get('appearance', {}).get('tray_position', 'bottom')
+
+    def _is_top_anchored(self) -> bool:
+        """Whether the dashboard should stay pinned to the top edge."""
+        return self._get_tray_position() == 'top'
+
+    def refresh_tray_anchor(self, move_now: bool = False):
+        """Refresh cached tray geometry after config changes."""
+        screen = self.screen() or QApplication.primaryScreen()
+        if not screen:
+            return
+
+        screen_rect = screen.availableGeometry()
+        target_x = screen_rect.right() - self.width() - 10
+        if self._is_top_anchored():
+            target_y = screen_rect.top() + 10
+        else:
+            target_y = screen_rect.bottom() - self.height() - 10
+
+        self._tray_position = self._get_tray_position()
+        self._target_pos = QPoint(target_x, target_y)
+
+        if move_now and self.isVisible():
+            self.move(self._target_pos)
         
     def set_anim_height(self, h):
         h = int(h)
-        # Anchor to BOTTOM (Grow Up)
-        if self._height_anim_anchor_bottom is None:
-             self._height_anim_anchor_bottom = self.y() + self.height()
-             
-        # Calculate new Y so bottom stays fixed
-        new_y = self._height_anim_anchor_bottom - h
+        if self._is_top_anchored():
+            if getattr(self, '_height_anim_anchor_top', None) is None:
+                self._height_anim_anchor_top = self.y()
+            new_y = self._height_anim_anchor_top
+        else:
+            if self._height_anim_anchor_bottom is None:
+                 self._height_anim_anchor_bottom = self.y() + self.height()
+            new_y = self._height_anim_anchor_bottom - h
         self.setGeometry(self.x(), new_y, self.width(), h)
         
     anim_height = pyqtProperty(float, get_anim_height, set_anim_height)
@@ -429,6 +458,7 @@ class Dashboard(QWidget):
              
         # Reset anchor to ensure we capture current position correctly
         self._height_anim_anchor_bottom = None
+        self._height_anim_anchor_top = None
              
         # Unlock size constraints for animation
         self.setMinimumSize(0, 0)
@@ -1282,13 +1312,7 @@ class Dashboard(QWidget):
             self.show()
             return
         
-        screen_rect = screen.availableGeometry()
-        
-        # Calculate target position
-        target_x = screen_rect.right() - self.width() - 10
-        target_y = screen_rect.bottom() - self.height() - 10
-        
-        self._target_pos = QPoint(target_x, target_y)
+        self.refresh_tray_anchor()
         
         # Set initial state (Hidden & Positioned) BEFORE showing
         # This prevents the window from flashing in the center/wrong place
@@ -1325,7 +1349,7 @@ class Dashboard(QWidget):
             self.show_near_tray()
     
     def close_animated(self):
-        """Fade out and slide down, then hide."""
+        """Fade out and slide toward the tray edge, then hide."""
         self.anim.stop()
         self.border_anim.stop() # Stop the glow too
         
@@ -1376,11 +1400,11 @@ class Dashboard(QWidget):
         # 1. Opacity
         self.setWindowOpacity(val)
         
-        # 2. Slide Up (Entrance) / Slide Down (Exit)
-        # Offset: 0 at 1.0 (open), +20 at 0.0 (closed)
+        # 2. Slide relative to the tray edge.
         if hasattr(self, '_target_pos'):
             offset = int((1.0 - val) * 20)
-            self.move(self._target_pos.x(), self._target_pos.y() + offset)
+            direction = 1 if self._get_tray_position() == 'bottom' else -1
+            self.move(self._target_pos.x(), self._target_pos.y() + (offset * direction))
             
         self.update() # Trigger repaint for border effects
         
@@ -1481,6 +1505,7 @@ class Dashboard(QWidget):
             self.set_rows(app['rows'])
             
         self.update_style()
+        self.refresh_tray_anchor(move_now=True)
         
         self.settings_saved.emit(config)
         self.hide_settings()
@@ -1534,6 +1559,7 @@ class Dashboard(QWidget):
         
         # Anchor exactly to the current bottom so sizing is perfectly stable,
         # _on_transition_done will run when finished to reset the anchor precisely
+        self._anchor_top_y = self.geometry().y()
         self._anchor_bottom_y = self.geometry().y() + self.height()
         self._anchor_right_x = self.geometry().x() + self.width()
         
@@ -1654,6 +1680,7 @@ class Dashboard(QWidget):
         self._anim_target_height = target_height
         self._anim_start_time = time.perf_counter()
         self._anim_duration = 0.25
+        self._anchor_top_y = self.geometry().y()
         self._anchor_bottom_y = self.geometry().y() + self.height()
         self._anchor_right_x = self.geometry().x() + self.width()
 
@@ -1721,9 +1748,10 @@ class Dashboard(QWidget):
         # Calculate current height
         current_h = int(self._anim_start_height + (self._anim_target_height - self._anim_start_height) * t)
         
-        # Update Geometry
-        # Anchor to bottom: new_y = bottom - new_height
-        new_y = self._anchor_bottom_y - current_h
+        if self._is_top_anchored():
+            new_y = self._anchor_top_y
+        else:
+            new_y = self._anchor_bottom_y - current_h
 
         # Animate width if it changed (e.g. settings expansion)
         start_w = getattr(self, '_anim_start_width', None)
@@ -1829,11 +1857,11 @@ class Dashboard(QWidget):
         if self._current_view == 'grid':
             self._fade_in_footer()
         
-        # Reposition window to bottom-right corner
+        # Reposition window to the configured tray edge.
         self._reposition_after_morph()
     
     def _reposition_after_morph(self):
-        """Reposition window to keep it anchored to bottom-right."""
+        """Reposition window to keep it anchored to the configured tray edge."""
         try:
             screen = self.screen()
         except:
@@ -1846,7 +1874,10 @@ class Dashboard(QWidget):
             return
         screen_rect = screen.availableGeometry()
         x = screen_rect.right() - self.width() - 10
-        y = screen_rect.bottom() - self.height() - 10
+        if self._is_top_anchored():
+            y = screen_rect.top() + 10
+        else:
+            y = screen_rect.bottom() - self.height() - 10
         self.move(x, y)
 
     # ============ DRAG TO RESIZE HANDLERS ============
@@ -1861,11 +1892,18 @@ class Dashboard(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             x = event.position().x()
             y = event.position().y()
+            vertical_resize_from_bottom = self._is_top_anchored()
 
             # Identify resize zone
             mode = None
-            # Disable Corner Drag (Top-Left) - Prioritize Top then Left
-            if y < RESIZE_MARGIN:
+            # Disable corner drag. When the window is top-anchored, use the
+            # bottom edge so row growth happens downward instead of upward.
+            if vertical_resize_from_bottom:
+                if y > self.height() - RESIZE_MARGIN:
+                    mode = 'bottom'
+                elif x < RESIZE_MARGIN:
+                    mode = 'left'
+            elif y < RESIZE_MARGIN:
                 mode = 'top'
             elif x < RESIZE_MARGIN:
                 mode = 'left'
@@ -1898,7 +1936,12 @@ class Dashboard(QWidget):
                 and isinstance(obj, QWidget)
                 and (obj is self or self.isAncestorOf(obj))):
             pos = self.mapFromGlobal(event.globalPosition().toPoint())
-            if pos.y() >= RESIZE_MARGIN and pos.x() >= RESIZE_MARGIN:
+            near_vertical_resize = (
+                pos.y() > self.height() - RESIZE_MARGIN
+                if self._is_top_anchored()
+                else pos.y() < RESIZE_MARGIN
+            )
+            if not near_vertical_resize and pos.x() >= RESIZE_MARGIN:
                 self.unsetCursor()
         return super().eventFilter(obj, event)
 
@@ -1912,10 +1955,17 @@ class Dashboard(QWidget):
 
         x = event.position().x()
         y = event.position().y()
+        vertical_resize_from_bottom = self._is_top_anchored()
 
         if not self._is_resizing_window:
-            # Hover Logic: Change Cursor (No Corner)
-            if y < RESIZE_MARGIN:
+            if vertical_resize_from_bottom:
+                if y > self.height() - RESIZE_MARGIN:
+                    self.setCursor(Qt.CursorShape.SizeVerCursor)
+                elif x < RESIZE_MARGIN:
+                    self.setCursor(Qt.CursorShape.SizeHorCursor)
+                else:
+                    self.unsetCursor()
+            elif y < RESIZE_MARGIN:
                 self.setCursor(Qt.CursorShape.SizeVerCursor)
             elif x < RESIZE_MARGIN:
                 self.setCursor(Qt.CursorShape.SizeHorCursor)
@@ -1935,6 +1985,10 @@ class Dashboard(QWidget):
         if 'top' in self._resize_mode:
             start_h = self._resize_start_geo[3]
             new_h = start_h - dy
+            target_rows = self._get_rows_at_height(new_h)
+        elif 'bottom' in self._resize_mode:
+            start_h = self._resize_start_geo[3]
+            new_h = start_h + dy
             target_rows = self._get_rows_at_height(new_h)
 
         if 'left' in self._resize_mode:
@@ -2006,4 +2060,3 @@ class Dashboard(QWidget):
                 best_cols = c
                 
         return best_cols
-

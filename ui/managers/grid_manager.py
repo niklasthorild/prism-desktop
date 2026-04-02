@@ -89,7 +89,8 @@ class GridManager:
             if start_h != new_height and self.dashboard._current_view == 'grid':
                 if preview_mode:
                     self.dashboard.setFixedSize(self.dashboard.width(), new_height)
-                    if hasattr(self.dashboard, '_resize_anchor_y'):
+                    if (hasattr(self.dashboard, '_resize_anchor_y')
+                            and not self.dashboard._is_top_anchored()):
                         new_y = self.dashboard._resize_anchor_y - new_height
                         self.dashboard.move(self.dashboard.x(), new_y)
                 else:
