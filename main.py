@@ -342,7 +342,9 @@ class PrismDesktopApp(QObject):
     def _show_settings(self):
         if self.dashboard:
             if not self.dashboard.isVisible():
-                self.dashboard.show()
+                self.dashboard.show_near_tray()
+                QTimer.singleShot(0, self.dashboard.show_settings)
+                return
             self.dashboard.show_settings()
     
     @pyqtSlot()
@@ -379,6 +381,8 @@ class PrismDesktopApp(QObject):
             self.dashboard.set_buttons(self.config.get('buttons', []), self.config.get('appearance', {}))
             # Re-apply camera images after rebuild
             self.dashboard.apply_camera_cache(self._camera_cache)
+            if self.dashboard.isVisible():
+                self.dashboard.refresh_tray_anchor(move_now=True)
         
         if self.input_manager:
              self.input_manager.update_shortcut(self.config.get('shortcut', {}))
