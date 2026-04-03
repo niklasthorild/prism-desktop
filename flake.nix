@@ -15,7 +15,7 @@
     {
       packages = forAllSystems (pkgs:
         let
-          version = "1.4.2";
+          version = "1.4.3";
 
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
@@ -138,4 +138,3 @@
       });
     };
 }
-
