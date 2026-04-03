@@ -71,6 +71,11 @@ class ServiceDispatcher:
             state = await self.ha_client.get_state(entity_id)
             current = state.get('state') if state else 'docked'
             service = 'pause' if current in ('mowing', 'returning') else 'start_mowing'
+        elif btn_type == 'vacuum':
+            domain = 'vacuum'
+            state = await self.ha_client.get_state(entity_id)
+            current = state.get('state') if state else 'docked'
+            service = 'pause' if current in ('cleaning', 'returning') else 'start'
         elif config.get('action') == 'set_input_number':
             domain = 'input_number'
             service = 'set_value'

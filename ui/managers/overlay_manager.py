@@ -2,7 +2,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QRect, QPoint
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QWidget
 
-from ui.widgets.overlays import DimmerOverlay, ClimateOverlay, PrinterOverlay, WeatherOverlay, CameraOverlay, MowerOverlay
+from ui.widgets.overlays import DimmerOverlay, ClimateOverlay, PrinterOverlay, WeatherOverlay, CameraOverlay, MowerOverlay, VacuumOverlay
 from ui.widgets.dashboard_button import DashboardButton
 from ui.constants import BUTTON_HEIGHT, BUTTON_SPACING
 
@@ -55,6 +55,11 @@ class OverlayManager(QObject):
         self.mower_overlay.finished.connect(self.on_mower_finished)
         self.mower_overlay.morph_changed.connect(self.on_morph_changed)
 
+        self.vacuum_overlay = VacuumOverlay(parent)
+        self.vacuum_overlay.action_requested.connect(self.on_vacuum_action)
+        self.vacuum_overlay.finished.connect(self.on_vacuum_finished)
+        self.vacuum_overlay.morph_changed.connect(self.on_morph_changed)
+
         # State Tracking
         self._active_dimmer_entity = None
         self._active_dimmer_type = None
@@ -84,6 +89,10 @@ class OverlayManager(QObject):
         self._active_mower_entity = None
         self._mower_source_btn = None
         self._mower_siblings = []
+
+        self._active_vacuum_entity = None
+        self._vacuum_source_btn = None
+        self._vacuum_siblings = []
 
         # Throttling Timers
         self.dimmer_timer = QTimer(self)
@@ -119,7 +128,8 @@ class OverlayManager(QObject):
                 self.printer_overlay.isVisible() or
                 self.weather_overlay.isVisible() or
                 self.camera_overlay.isVisible() or
-                self.mower_overlay.isVisible())
+                self.mower_overlay.isVisible() or
+                self.vacuum_overlay.isVisible())
 
     def close_all_overlays_animated(self):
         """Trigger close_morph on all visible overlays instead of instant hide."""
@@ -135,6 +145,8 @@ class OverlayManager(QObject):
             self.camera_overlay.close_morph()
         if self.mower_overlay.isVisible() and not getattr(self.mower_overlay, '_is_closing', False):
             self.mower_overlay.close_morph()
+        if self.vacuum_overlay.isVisible() and not getattr(self.vacuum_overlay, '_is_closing', False):
+            self.vacuum_overlay.close_morph()
 
     def _queue_or_start_overlay(self, method, slot, *args):
         """
@@ -232,6 +244,10 @@ class OverlayManager(QObject):
         # Notify active mower overlay
         if self.mower_overlay.isVisible() and self._active_mower_entity == entity_id:
             self.mower_overlay.update_state(state)
+
+        # Notify active vacuum overlay
+        if self.vacuum_overlay.isVisible() and self._active_vacuum_entity == entity_id:
+            self.vacuum_overlay.update_state(state)
 
     def update_camera_image(self, entity_id: str, pixmap):
         """Update active overlays with new camera image."""
@@ -456,6 +472,10 @@ class OverlayManager(QObject):
             self._mower_source_btn = source_btn
             source_btn.set_opacity(0.0)
             self._mower_siblings = []
+        elif overlay_type == 'vacuum':
+            self._vacuum_source_btn = source_btn
+            source_btn.set_opacity(0.0)
+            self._vacuum_siblings = []
         else:
             self._dimmer_source_btn = source_btn
             source_btn.set_opacity(0.0)
@@ -976,6 +996,93 @@ class OverlayManager(QObject):
         if self._mower_source_btn:
             self._mower_source_btn.set_opacity(1.0)
             self._mower_source_btn = None
+        self.parent_widget.activateWindow()
+        self._check_pending_actions()
+
+    # ==========================
+    # Vacuum Logic
+    # ==========================
+
+    def start_vacuum(self, slot: int, global_rect: QRect):
+        if self._queue_or_start_overlay(self.start_vacuum, slot, global_rect):
+            return
+
+        source_btn = next((b for b in self.buttons if b.slot == slot), None)
+        if not source_btn or not source_btn.config:
+            return
+        config = source_btn.config
+        entity_id = config.get('entity_id')
+        if not entity_id:
+            return
+
+        self._active_vacuum_entity = entity_id
+
+        # Colors
+        if self.theme_manager:
+            base_color = QColor(self.theme_manager.get_colors().get('base', '#2d2d2d'))
+        else:
+            base_color = QColor("#2d2d2d")
+        button_color = config.get('color')
+        accent_color = QColor(button_color) if button_color else QColor("#4CAF50")
+        if self.theme_manager and not button_color:
+            accent_color = QColor(self.theme_manager.get_colors().get('accent', '#4CAF50'))
+
+        start_rect = self.parent_widget.mapFromGlobal(global_rect.topLeft())
+        start_rect = QRect(start_rect, global_rect.size())
+
+        target_rect = self._calculate_target_rect_and_siblings(source_btn, slot, overlay_type='vacuum')
+
+        # Enforce 2-row minimum height
+        min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
+        if target_rect.height() < min_height:
+            target_rect.setHeight(min_height)
+
+            safe_bottom = self.parent_widget.height() - 40
+            if target_rect.bottom() > safe_bottom:
+                if source_btn:
+                    src_pos = source_btn.mapTo(self.parent_widget, QPoint(0, 0))
+                    src_bottom = src_pos.y() + source_btn.height()
+                    target_rect.moveBottom(src_bottom)
+                else:
+                    diff = target_rect.bottom() - safe_bottom
+                    target_rect.moveTop(target_rect.top() - diff)
+
+            for btn in self.buttons:
+                if not btn.isVisible() or btn == source_btn:
+                    continue
+                if btn in self._vacuum_siblings:
+                    continue
+                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
+                btn_rect = QRect(btn_pos, btn.size())
+                if target_rect.intersects(btn_rect):
+                    self._vacuum_siblings.append(btn)
+                    btn.set_opacity(0.0)
+
+        current_state = self._entity_states.get(entity_id, {})
+
+        self.vacuum_overlay.set_border_effect(self._border_effect)
+        self.vacuum_overlay.start_morph(
+            start_rect, target_rect, config.get('label', 'Vacuum'),
+            color=accent_color, base_color=base_color,
+            current_state=current_state
+        )
+
+    def on_vacuum_action(self, action: str):
+        if not self._active_vacuum_entity:
+            return
+        self.service_request.emit({
+            "service": f"vacuum.{action}",
+            "entity_id": self._active_vacuum_entity
+        })
+
+    def on_vacuum_finished(self):
+        self._active_vacuum_entity = None
+        for btn in self._vacuum_siblings:
+            btn.set_opacity(1.0)
+        self._vacuum_siblings = []
+        if self._vacuum_source_btn:
+            self._vacuum_source_btn.set_opacity(1.0)
+            self._vacuum_source_btn = None
         self.parent_widget.activateWindow()
         self._check_pending_actions()
 

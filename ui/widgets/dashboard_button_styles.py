@@ -72,7 +72,7 @@ class DashboardButtonStyleManager:
             """)
             return
         if (button._state == "on" or button._state == "open" or button._state == "locked" or
-            button._state == "mowing" or button._state == "returning" or
+            button._state == "mowing" or button._state == "returning" or button._state == "cleaning" or
             (button.config and button.config.get('type') == 'script') or
             (button.config and button.config.get('type') == 'widget' and button.config.get('color')) or
             (button.config and button.config.get('type') == 'input_number' and button.config.get('color'))):

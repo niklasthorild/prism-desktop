@@ -159,6 +159,9 @@ class Icons:
     # Lawn Mower
     MOWER = "\U000F11F7"               # mdi-robot-mower
 
+    # Vacuum
+    VACUUM = "\U000F097C"              # mdi-robot-vacuum
+
 # --- MDI Mapping Logic ---
 
 # --- MDI Mapping Logic ---

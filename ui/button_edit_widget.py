@@ -33,6 +33,7 @@ class ButtonEditWidget(QWidget):
         ("Scene", "scene"),
         ("Script", "script"),
         ("Sensor", "widget"),
+        ("Vacuum", "vacuum"),
         ("Weather", "weather"),
         ("3D Printer", "3d_printer")
     ]
@@ -549,7 +550,8 @@ class ButtonEditWidget(QWidget):
             'camera': {'camera'},
             'weather': {'weather'},
             'lock': {'lock'},
-            'lawn_mower': {'lawn_mower'}
+            'lawn_mower': {'lawn_mower'},
+            'vacuum': {'vacuum'}
         }
         allowed_domains = domain_map.get(current_type)
         

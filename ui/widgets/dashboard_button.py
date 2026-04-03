@@ -37,6 +37,7 @@ class DashboardButton(QFrame):
     camera_requested = pyqtSignal(int, QRect, dict) # slot, geometry, config
     volume_requested = pyqtSignal(int, QRect) # slot, geometry (for volume overlay)
     mower_requested = pyqtSignal(int, QRect) # slot, geometry (for mower overlay)
+    vacuum_requested = pyqtSignal(int, QRect) # slot, geometry (for vacuum overlay)
     volume_scroll = pyqtSignal(str, float) # entity_id, new_volume (for scroll wheel)
     media_command_requested = pyqtSignal(dict)
     resize_requested = pyqtSignal(int, int, int) # slot, span_x, span_y
@@ -346,6 +347,8 @@ class DashboardButton(QFrame):
             self._update_3d_printer_view()
         elif btn_type == 'lawn_mower':
             self._update_lawn_mower_view()
+        elif btn_type == 'vacuum':
+            self._update_vacuum_view()
         elif btn_type == 'input_number':
             self._update_input_number_view()
         else:
@@ -661,6 +664,17 @@ class DashboardButton(QFrame):
         self.value_label.show()
         self.name_label.show()
 
+    def _update_vacuum_view(self):
+        """Update vacuum widget — sensor-style with state text + label."""
+        label = self.config.get('label', '')
+        self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
+        state_str = self._state or 'unknown'
+        self.value_label.setText(state_str.replace('_', ' ').capitalize())
+        self.name_label.setText(label)
+        self.setProperty("type", "vacuum")
+        self.value_label.show()
+        self.name_label.show()
+
     def _update_default_view(self, btn_type):
         """Default view for switch, light, lock, etc."""
         label = self.config.get('label', '')
@@ -814,6 +828,8 @@ class DashboardButton(QFrame):
             # Let the painter pull the rest from the dashboard's _entity_states directly
         elif btn_type == 'lawn_mower':
             # Raw HA state drives both view text and ON-color styling
+            self.set_state(state.get('state', 'unknown'))
+        elif btn_type == 'vacuum':
             self.set_state(state.get('state', 'unknown'))
         elif btn_type == 'automation':
             # Update automation state (on/off)
@@ -1016,6 +1032,9 @@ class DashboardButton(QFrame):
         elif btn_type == 'lawn_mower':
             self._ignore_release = True
             self.mower_requested.emit(self.slot, rect)
+        elif btn_type == 'vacuum':
+            self._ignore_release = True
+            self.vacuum_requested.emit(self.slot, rect)
         elif btn_type == 'input_number':
             # Long press on input_number -> Enable value scrub mode
             self._input_scrub_mode = True
@@ -1375,6 +1394,10 @@ class DashboardButton(QFrame):
                  global_pos = self.mapToGlobal(QPoint(0,0))
                  rect = QRect(global_pos, self.size())
                  self.mower_requested.emit(self.slot, rect)
+             elif self.config and self.config.get('type') == 'vacuum':
+                 global_pos = self.mapToGlobal(QPoint(0,0))
+                 rect = QRect(global_pos, self.size())
+                 self.vacuum_requested.emit(self.slot, rect)
              elif self.config and self.config.get('type') == 'lock':
                  # Toggle lock state
                  action = 'unlock' if self._state == 'locked' else 'lock'
@@ -1579,5 +1602,9 @@ class DashboardButton(QFrame):
              global_pos = self.mapToGlobal(QPoint(0,0))
              rect = QRect(global_pos, self.size())
              self.mower_requested.emit(self.slot, rect)
+        elif self.config.get('type') == 'vacuum':
+             global_pos = self.mapToGlobal(QPoint(0,0))
+             rect = QRect(global_pos, self.size())
+             self.vacuum_requested.emit(self.slot, rect)
         else:
              self.clicked.emit(self.config)

@@ -2075,12 +2075,23 @@ class CameraOverlay(QWidget):
         painter.drawRoundedRect(border_rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
 
 
-class MowerOverlay(QWidget):
+class RobotOverlay(QWidget):
     """
-    Overlay for lawn mower control.
-    Shows state, Start/Pause + Dock buttons, and a battery bar.
+    Base class for robot device overlays (lawn mower, vacuum, etc.).
+    Shows state, Start/Pause + Dock buttons, and a battery pill.
+
+    Subclasses declare domain-specific constants:
+        ACTIVE_STATES  – tuple of HA states that trigger "Pause" mode
+        START_ACTION   – service action string emitted when starting
+        DOCK_ACTION    – service action string emitted for dock button
+        DEFAULT_LABEL  – fallback label when none is provided
     """
-    action_requested = pyqtSignal(str)   # 'start_mowing', 'pause', 'dock'
+    ACTIVE_STATES: tuple = ()
+    START_ACTION:  str   = ''
+    DOCK_ACTION:   str   = ''
+    DEFAULT_LABEL: str   = ''
+
+    action_requested = pyqtSignal(str)
     finished = pyqtSignal()
     morph_changed = pyqtSignal(float)    # 0.0 – 1.0
 
@@ -2090,7 +2101,7 @@ class MowerOverlay(QWidget):
         self.raise_()
         self.hide()
 
-        self._text = "Mower"
+        self._text = self.DEFAULT_LABEL
         self._color = QColor("#4CAF50")       # Default green
         self._base_color = QColor("#2d2d2d")
 
@@ -2256,12 +2267,12 @@ class MowerOverlay(QWidget):
         if self._btn_close.contains(pos):
             self.close_morph()
         elif self._btn_start_pause.contains(pos):
-            if self._state in ('mowing', 'returning'):
+            if self._state in self.ACTIVE_STATES:
                 self.action_requested.emit('pause')
             else:
-                self.action_requested.emit('start_mowing')
+                self.action_requested.emit(self.START_ACTION)
         elif self._btn_dock.contains(pos):
-            self.action_requested.emit('dock')
+            self.action_requested.emit(self.DOCK_ACTION)
 
     def mouseMoveEvent(self, event):
         pos = event.pos()
@@ -2333,15 +2344,21 @@ class MowerOverlay(QWidget):
         state_rect = QRectF(padding, padding, rect.width() - padding * 2 - close_size, 24)
         painter.drawText(state_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, state_display)
 
-        # ── Action buttons (vertically centred) ──
+        # ── Action buttons + battery pill (vertically centred as a group) ──
         btn_h = 36
         gap = 8
+        pill_h = 22
+        pill_gap = 10
         avail_w = rect.width() - padding * 2
         btn_w = (avail_w - gap) / 2
-        btn_y = padding + 24 + (rect.height() - padding * 2 - 24 - 4 - btn_h) / 2
+        total_group_h = btn_h + pill_gap + pill_h
+        btn_y = padding + 24 + 4 + (rect.height() - padding * 2 - 24 - 4 - total_group_h) / 2
+        pill_y = btn_y + btn_h + pill_gap
+        pill_rect = QRectF(padding, pill_y, avail_w, pill_h)
+        pill_radius = pill_h / 2
 
         # Start/Pause button
-        is_active = self._state in ('mowing', 'returning')
+        is_active = self._state in self.ACTIVE_STATES
         sp_rect = QRectF(padding, btn_y, btn_w, btn_h)
         self._btn_start_pause = sp_rect.toAlignedRect()
 
@@ -2388,7 +2405,7 @@ class MowerOverlay(QWidget):
         painter.drawText(QRectF(icon_x2 + 22, dk_rect.y(), btn_w - 34, btn_h),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, "Dock")
 
-        # ── Battery bar at bottom ──
+        # ── Battery pill ──
         if self._battery_level >= 0:
             if self._battery_level > 50:
                 bar_color = QColor("#34A853")
@@ -2397,13 +2414,30 @@ class MowerOverlay(QWidget):
             else:
                 bar_color = QColor("#EA4335")
             bar_color.setAlpha(alpha)
-            DashboardButtonPainter.draw_bottom_bar(
-                painter, QRectF(rect), self._battery_level, 100.0, bar_color
-            )
+
+            pill_path = QPainterPath()
+            pill_path.addRoundedRect(pill_rect, pill_radius, pill_radius)
+
+            # Background track
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self._fg_color(int(alpha * 0.12)))
+            painter.drawPath(pill_path)
+
+            # Filled portion clipped to pill shape
+            fill_w = avail_w * (self._battery_level / 100.0)
+            painter.setClipPath(pill_path)
+            painter.setBrush(bar_color)
+            painter.drawRect(QRectF(padding, pill_y, fill_w, pill_h))
+            painter.setClipping(False)
+
+            # Percentage label centered in pill
+            painter.setPen(self._fg_color(alpha))
+            painter.setFont(QFont(SYSTEM_FONT, 9, QFont.Weight.Bold))
+            painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, f"{int(self._battery_level)}%")
 
         painter.end()
 
-    # ── Border drawing (shared pattern) ──
+    # ── Border drawing ──
 
     def _draw_rainbow_border(self, painter, rect):
         colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#4285F4"]
@@ -2440,3 +2474,19 @@ class MowerOverlay(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1),
                                 OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
+
+
+class MowerOverlay(RobotOverlay):
+    """Lawn mower control overlay."""
+    ACTIVE_STATES = ('mowing', 'returning')
+    START_ACTION  = 'start_mowing'
+    DOCK_ACTION   = 'dock'
+    DEFAULT_LABEL = 'Mower'
+
+
+class VacuumOverlay(RobotOverlay):
+    """Vacuum control overlay."""
+    ACTIVE_STATES = ('cleaning', 'returning')
+    START_ACTION  = 'start'
+    DOCK_ACTION   = 'return_to_base'
+    DEFAULT_LABEL = 'Vacuum'
