@@ -1333,7 +1333,7 @@ class Dashboard(QWidget):
         # Capture frosted glass background BEFORE showing (so we grab the clean desktop)
         if self._glass_ui:
             # Position the window first so geometry is correct for capture
-            self.move(target_x, target_y)
+            self.move(self._target_pos)
             self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
         
         # Ensure we are visible before animating
