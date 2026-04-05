@@ -90,6 +90,18 @@ class HAClient:
         except Exception as e:
             self.logger.error(f"Error fetching entities: {e}")
             return []
+
+    async def get_config(self) -> Optional[dict]:
+        """Fetch Home Assistant instance config."""
+        try:
+            session = await self._get_session()
+            async with session.get(f"{self.url}/api/config", timeout=10) as response:
+                if response.status == 200:
+                    return await response.json()
+                return None
+        except Exception as e:
+            self.logger.error(f"Error fetching HA config: {e}")
+            return None
     
     async def get_state(self, entity_id: str) -> Optional[dict]:
         """Get state of a specific entity."""

@@ -7,6 +7,7 @@ from PyQt6.QtGui import (
 )
 from ui.icons import get_icon, get_mdi_font, Icons
 from core.utils import SYSTEM_FONT
+from core.temperature_utils import format_temperature
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 
 # ── Shared Overlay Animation Constants ──────────────────────────────
@@ -323,6 +324,7 @@ class ClimateOverlay(QWidget):
         self._min_temp = 5.0
         self._max_temp = 35.0
         self._step = 0.5
+        self._display_temp_unit = 'C'
         
         # UI State
         self._current_hvac_mode = 'off'
@@ -423,6 +425,13 @@ class ClimateOverlay(QWidget):
             self._fan_modes = attrs.get('fan_modes')
         
         self.update()
+
+    def configure_temperature_range(self, min_temp: float, max_temp: float, step: float, display_unit: str | None = None):
+        self._min_temp = min_temp
+        self._max_temp = max_temp
+        self._step = step if step and step > 0 else 0.5
+        if display_unit:
+            self._display_temp_unit = display_unit
 
     def start_morph(self, start_geo: QRect, target_geo: QRect, initial_value: float, text: str, 
                    color: QColor = None, base_color: QColor = None,
@@ -654,7 +663,8 @@ class ClimateOverlay(QWidget):
         font_val = QFont(SYSTEM_FONT, 18, QFont.Weight.Light) 
         painter.setFont(font_val)
         fm = painter.fontMetrics()
-        val_str = f"{self._value:.1f}"
+        val_str = f"{self._value:.1f}".replace('.0', '')
+        val_str = f"{val_str}°{self._display_temp_unit}"
         text_w = fm.horizontalAdvance(val_str)
         text_h = fm.height()
         
@@ -973,6 +983,8 @@ class PrinterOverlay(QWidget):
         self._progress = 0.0
         self._time_remaining = ""
         self._camera_pixmap = None
+        self._temperature_unit_preference = "celsius"
+        self._printer_source_unit = None
         
         # UI Rects
         self._btn_close = QRect()
@@ -1077,6 +1089,7 @@ class PrinterOverlay(QWidget):
         self._hotend_target = safe_float(attrs.get('hotend_target', 0.0))
         self._bed_actual = safe_float(attrs.get('bed_actual', 0.0))
         self._bed_target = safe_float(attrs.get('bed_target', 0.0))
+        self._printer_source_unit = attrs.get('temperature_unit')
         self._progress = safe_float(attrs.get('progress', 0.0))
         
         self._time_remaining = attrs.get('time_remaining', '')
@@ -1084,6 +1097,10 @@ class PrinterOverlay(QWidget):
         
     def set_camera_pixmap(self, pixmap):
         self._camera_pixmap = pixmap
+        self.update()
+
+    def set_temperature_unit_preference(self, preference: str):
+        self._temperature_unit_preference = preference
         self.update()
         
     def start_morph(self, start_geo: QRect, target_geo: QRect, label: str,
@@ -1352,8 +1369,9 @@ class PrinterOverlay(QWidget):
         # Hotend
         painter.setPen(self._fg_color(alpha))
         
-        nozzle_val = f"{self._hotend_actual:.0f}°/{self._hotend_target:.0f}°"
-        bed_val = f"{self._bed_actual:.0f}°/{self._bed_target:.0f}°"
+        _fmt = lambda v: format_temperature(v, self._printer_source_unit, self._temperature_unit_preference, precision=0, fallback="0")
+        nozzle_val = f"{_fmt(self._hotend_actual)}/{_fmt(self._hotend_target)}"
+        bed_val = f"{_fmt(self._bed_actual)}/{_fmt(self._bed_target)}"
         
         # Calculate robust widths to prevent overflow
         fm_icon = QFontMetrics(get_mdi_font(14))
@@ -1469,6 +1487,7 @@ class WeatherOverlay(QWidget):
         
         self._current_state = {}
         self._forecasts = []
+        self._temperature_unit_preference = "celsius"
         
         # Animation
         self._morph_progress = 0.0
@@ -1546,6 +1565,10 @@ class WeatherOverlay(QWidget):
         if not current_state:
             return
         self._current_state = current_state
+        self.update()
+
+    def set_temperature_unit_preference(self, preference: str):
+        self._temperature_unit_preference = preference
         self.update()
 
     def start_morph(self, start_geo: QRect, target_geo: QRect, current_state: dict, forecasts: list, text: str, color: QColor = None, base_color: QColor = None):
@@ -1721,15 +1744,13 @@ class WeatherOverlay(QWidget):
         attrs = self._current_state.get('attributes', {})
         temp = attrs.get('temperature', '--')
         emoji = self._get_weather_emoji(current_st)
-        
-        # Temperature unit
-        raw_unit = attrs.get('temperature_unit', '°')
-        if raw_unit in ('°C', '°F'):
-            unit = raw_unit
-        elif raw_unit in ('C', 'F'):
-            unit = f'°{raw_unit}'
-        else:
-            unit = '°'
+        source_unit = attrs.get('temperature_unit')
+        temp_str = format_temperature(
+            temp,
+            source_unit,
+            self._temperature_unit_preference,
+            precision=1,
+        )
         
         center_x = mid_x // 2
         
@@ -1744,12 +1765,8 @@ class WeatherOverlay(QWidget):
         icon_h = fm.height()
         painter.drawText(QRect(0, rect.height() // 2 - icon_h // 2 - 12, mid_x, icon_h), Qt.AlignmentFlag.AlignCenter, emoji)
         
-        # Temperature
-        try: temp_clean = f"{float(temp):.1f}".replace('.0', '')
-        except: temp_clean = temp
-        
         painter.setFont(QFont(SYSTEM_FONT, 14, QFont.Weight.DemiBold))
-        painter.drawText(QRect(0, rect.height() // 2 + 18, mid_x, 30), Qt.AlignmentFlag.AlignCenter, f"{temp_clean}{unit}")
+        painter.drawText(QRect(0, rect.height() // 2 + 18, mid_x, 30), Qt.AlignmentFlag.AlignCenter, temp_str)
 
         # Forecast items (right side)
         right_rect = QRect(mid_x, 0, rect.width() - mid_x, rect.height())
@@ -1779,12 +1796,19 @@ class WeatherOverlay(QWidget):
                     day_str = "-"
                 
                 f_emoji = self._get_weather_emoji(f.get('condition', 'unknown'))
-                # Format appropriately: handle float/int conversion for clean display 
-                try: high = f"{float(f.get('temperature', 0)):.1f}".replace('.0', '')
-                except: high = f.get('temperature', '--')
-                
-                try: low = f"{float(f.get('templow', 0)):.1f}".replace('.0', '')
-                except: low = f.get('templow', '--')
+                high = format_temperature(
+                    f.get('temperature', '--'),
+                    source_unit,
+                    self._temperature_unit_preference,
+                    precision=1,
+                )
+                low = format_temperature(
+                    f.get('templow', '--'),
+                    source_unit,
+                    self._temperature_unit_preference,
+                    precision=1,
+                    fallback='--',
+                )
                 
                 painter.setFont(QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold))
                 painter.setPen(self._fg_color(int(alpha * 0.6)))
@@ -1799,12 +1823,12 @@ class WeatherOverlay(QWidget):
                 
                 painter.setFont(QFont(SYSTEM_FONT, 10, QFont.Weight.DemiBold))
                 painter.setPen(self._fg_color(int(alpha * 0.95)))
-                painter.drawText(QRect(fx, fy + 50, item_w, 16), Qt.AlignmentFlag.AlignCenter, f"{high}{unit}")
+                painter.drawText(QRect(fx, fy + 50, item_w, 16), Qt.AlignmentFlag.AlignCenter, high)
                 
-                if low != '--':
+                if not str(low).startswith('--'):
                     painter.setFont(QFont(SYSTEM_FONT, 9, QFont.Weight.Medium))
                     painter.setPen(self._fg_color(int(alpha * 0.4)))
-                    painter.drawText(QRect(fx, fy + 68, item_w, 16), Qt.AlignmentFlag.AlignCenter, f"{low}{unit}")
+                    painter.drawText(QRect(fx, fy + 68, item_w, 16), Qt.AlignmentFlag.AlignCenter, low)
 
 class CameraOverlay(QWidget):
     """

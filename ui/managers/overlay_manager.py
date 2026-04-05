@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QWidget
 from ui.widgets.overlays import DimmerOverlay, ClimateOverlay, PrinterOverlay, WeatherOverlay, CameraOverlay, MowerOverlay, VacuumOverlay
 from ui.widgets.dashboard_button import DashboardButton
 from ui.constants import BUTTON_HEIGHT, BUTTON_SPACING
+from core.temperature_utils import convert_temperature, convert_temperature_delta, normalize_temperature_unit, preference_to_unit
 
 class OverlayManager(QObject):
     """
@@ -106,6 +107,7 @@ class OverlayManager(QObject):
         self._border_effect = 'Rainbow'
         self._live_dimming = True
         self._pending_open_action = None
+        self._temperature_unit_preference = "celsius"
 
     def close_all_overlays(self):
         """Instantly hide any active overlay. Called before navigating away from grid."""
@@ -270,6 +272,9 @@ class OverlayManager(QObject):
         # Mix in Nozzle
         noz_data = self._entity_states.get(cfg.get('printer_nozzle_entity'), {})
         attrs['hotend_actual'] = noz_data.get('attributes', {}).get('actual_temperature', noz_data.get('state', 0.0))
+        noz_unit = noz_data.get('attributes', {}).get('unit_of_measurement')
+        if noz_unit:
+            attrs['temperature_unit'] = noz_unit
         
         noz_target_ent = cfg.get('printer_nozzle_target_entity')
         if noz_target_ent:
@@ -320,6 +325,11 @@ class OverlayManager(QObject):
         self.printer_overlay.set_border_effect(effect)
         self.weather_overlay.set_border_effect(effect)
         self.mower_overlay.set_border_effect(effect)
+
+    def set_temperature_unit_preference(self, preference: str):
+        self._temperature_unit_preference = preference
+        self.weather_overlay.set_temperature_unit_preference(preference)
+        self.printer_overlay.set_temperature_unit_preference(preference)
 
     # ==========================
     # Dimmer / Volume Logic
@@ -654,7 +664,7 @@ class OverlayManager(QObject):
         curr_temp = 20.0
         if source_btn and hasattr(source_btn, '_value'):
              try:
-                 temp_str = str(source_btn._value).replace('°C', '').replace('°', '').strip()
+                 temp_str = str(source_btn._value).replace('°', '').strip()
                  curr_temp = float(temp_str)
              except: pass
              
@@ -711,6 +721,26 @@ class OverlayManager(QObject):
 
         
         current_state = self._entity_states.get(entity_id, {})
+        attrs = current_state.get('attributes', {})
+        source_unit = attrs.get('temperature_unit')
+        display_unit = preference_to_unit(self._temperature_unit_preference, fallback=source_unit)
+        current_temp = attrs.get('temperature', curr_temp)
+        converted_temp = convert_temperature(current_temp, source_unit, display_unit)
+        if converted_temp is not None:
+            curr_temp = converted_temp
+
+        min_temp = attrs.get('min_temp', 5.0)
+        max_temp = attrs.get('max_temp', 35.0)
+        temp_step = attrs.get('target_temp_step', 0.5)
+        converted_min = convert_temperature(min_temp, source_unit, display_unit)
+        converted_max = convert_temperature(max_temp, source_unit, display_unit)
+        converted_step = convert_temperature_delta(temp_step, source_unit, display_unit)
+        self.climate_overlay.configure_temperature_range(
+            converted_min if converted_min is not None else 5.0,
+            converted_max if converted_max is not None else 35.0,
+            converted_step if converted_step is not None else 0.5,
+            normalize_temperature_unit(display_unit),
+        )
         
         self.climate_overlay.set_border_effect(self._border_effect)
         self.climate_overlay.start_morph(
@@ -729,11 +759,18 @@ class OverlayManager(QObject):
         
         val = self._pending_climate_val
         self._pending_climate_val = None
+
+        attrs = self._entity_states.get(self._active_climate_entity, {}).get('attributes', {})
+        source_unit = attrs.get('temperature_unit')
+        display_unit = preference_to_unit(self._temperature_unit_preference, fallback=source_unit)
+        service_temp = convert_temperature(val, display_unit, source_unit)
+        if service_temp is None:
+            service_temp = val
         
         self.service_request.emit({
             "service": "climate.set_temperature",
             "entity_id": self._active_climate_entity,
-            "service_data": {"temperature": val}
+            "service_data": {"temperature": service_temp}
         })
 
     def on_climate_mode_changed(self, mode):
@@ -1267,4 +1304,3 @@ class OverlayManager(QObject):
             self._camera_source_btn = None
         self.parent_widget.activateWindow()
         self._check_pending_actions()
-
