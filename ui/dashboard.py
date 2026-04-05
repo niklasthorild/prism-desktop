@@ -175,7 +175,44 @@ class Dashboard(QWidget):
         self.width_anim.setDuration(ANIM_DURATION_WIDTH)
         self.width_anim.setEasingCurve(QEasingCurve.Type.OutBack)
         self.width_anim.finished.connect(self._on_width_anim_finished)
-            
+
+        self._last_tray_geometry = QRect()
+
+        # React to screen geometry changes (panel settling on startup, resolution, monitor changes)
+        self._connect_screen_signals(self.screen() or QApplication.primaryScreen())
+        app = QApplication.instance()
+        app.primaryScreenChanged.connect(lambda s: (self._connect_screen_signals(s),
+                                                     self._on_screen_geometry_changed()))
+        app.screenAdded.connect(lambda s: (self._connect_screen_signals(s),
+                                            self._on_screen_geometry_changed()))
+
+    def _connect_screen_signals(self, screen):
+        """Connect per-screen geometry signals to the reposition slot."""
+        if not screen:
+            return
+        screen.availableGeometryChanged.connect(self._on_screen_geometry_changed)
+        screen.geometryChanged.connect(self._on_screen_geometry_changed)
+
+    def _on_screen_geometry_changed(self, _rect=None):
+        """Slot for any screen geometry change. Defers to next event loop tick
+        so cascading X11 geometry updates have settled before we read them."""
+        QTimer.singleShot(0, lambda: self.refresh_tray_anchor(move_now=True))
+
+    def _screen_for_tray_geometry(self, tray_geometry: QRect | None = None):
+        """Choose the screen containing the tray icon when Qt reports it."""
+        if tray_geometry and not tray_geometry.isNull():
+            self._last_tray_geometry = QRect(tray_geometry)
+            screen = QApplication.screenAt(tray_geometry.center())
+            if screen:
+                return screen
+
+        if not self._last_tray_geometry.isNull():
+            screen = QApplication.screenAt(self._last_tray_geometry.center())
+            if screen:
+                return screen
+
+        return QApplication.primaryScreen() or self.screen()
+
     def dragEnterEvent(self, event):
         """Accept dragging buttons."""
         if event.mimeData().hasFormat(MIME_TYPE):
@@ -295,9 +332,9 @@ class Dashboard(QWidget):
         """Whether the dashboard should stay pinned to the top edge."""
         return self._get_tray_position() == 'top'
 
-    def refresh_tray_anchor(self, move_now: bool = False):
+    def refresh_tray_anchor(self, move_now: bool = False, tray_geometry: QRect | None = None):
         """Refresh cached tray geometry after config changes."""
-        screen = self.screen() or QApplication.primaryScreen()
+        screen = self._screen_for_tray_geometry(tray_geometry)
         if not screen:
             return
 
@@ -1317,15 +1354,15 @@ class Dashboard(QWidget):
     
 
     
-    def show_near_tray(self):
+    def show_near_tray(self, tray_geometry: QRect | None = None):
         """Position and show the dashboard near the system tray."""
-        screen = QApplication.primaryScreen()
+        screen = self._screen_for_tray_geometry(tray_geometry)
         if not screen:
             self.show()
             return
         
-        self.refresh_tray_anchor()
-
+        self.refresh_tray_anchor(tray_geometry=tray_geometry)
+        
         # Set initial state (Hidden & Positioned) BEFORE showing
         # This prevents the window from flashing in the center/wrong place
         self.set_anim_progress(0.0)
@@ -1356,11 +1393,11 @@ class Dashboard(QWidget):
         self.border_anim.setEndValue(1.0)
         self.border_anim.start()
     
-    def toggle(self):
+    def toggle(self, tray_geometry: QRect | None = None):
         if self.isVisible() and self.windowOpacity() > 0.1:
             self.close_animated()
         else:
-            self.show_near_tray()
+            self.show_near_tray(tray_geometry=tray_geometry)
     
     def close_animated(self):
         """Fade out and slide toward the tray edge, then hide."""
