@@ -51,6 +51,7 @@ from services.update_checker import UpdateCheckerThread
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
+from core.temperature_utils import normalize_temperature_unit
 
 VERSION = "1.4.3"
 
@@ -124,6 +125,7 @@ class PrismDesktopApp(QObject):
         
         # Helper for update check
         self._update_thread = None
+        self._temperature_unit_initialized = 'temperature_unit' in self.config.get('appearance', {})
 
         # Show Dashboard on Startup
         if self.dashboard:
@@ -381,6 +383,7 @@ class PrismDesktopApp(QObject):
         
         self.config_manager.config = new_config
         self.config = self.config_manager.config
+        self._temperature_unit_initialized = 'temperature_unit' in self.config.get('appearance', {})
         self.save_config()
         
         # Re-apply UI
@@ -658,9 +661,36 @@ class PrismDesktopApp(QObject):
     @pyqtSlot()
     def on_ws_connected(self):
         print("WS Connected")
+        _create_task_safe(self._ensure_temperature_unit_default())
         self.fetch_initial_states()
         # Register as a Mobile App so HA exposes notify.mobile_app_prism_desktop
         _create_task_safe(self._register_mobile_app())
+
+    async def _ensure_temperature_unit_default(self):
+        """Initialize the temperature unit from HA once, unless the user already saved a preference."""
+        appearance = self.config.setdefault('appearance', {})
+        if self._temperature_unit_initialized or appearance.get('temperature_unit'):
+            self._temperature_unit_initialized = True
+            return
+
+        ha_config = await self.ha_client.get_config()
+        if not ha_config:
+            return
+
+        ha_temp_unit = normalize_temperature_unit(
+            ha_config.get('unit_system', {}).get('temperature')
+        )
+        if not ha_temp_unit:
+            return
+
+        appearance['temperature_unit'] = 'fahrenheit' if ha_temp_unit == 'F' else 'celsius'
+        self._temperature_unit_initialized = True
+        self.save_config()
+
+        if self.dashboard:
+            self.dashboard.set_buttons(self.config.get('buttons', []), self.config.get('appearance', {}))
+            if getattr(self.dashboard, 'settings_widget', None):
+                self.dashboard.settings_widget.load_config()
 
     async def _register_mobile_app(self):
         ha_config = self.config.get('home_assistant', {})

@@ -113,6 +113,8 @@ class GridManager:
             self.dashboard._show_dimming = appearance_config.get('show_dimming', False)
             self.dashboard._glass_ui = appearance_config.get('glass_ui', False)
             self.dashboard._button_style = appearance_config.get('button_style', 'Gradient')
+            self.dashboard._temperature_unit = appearance_config.get('temperature_unit', 'celsius')
+            self.dashboard.overlay_manager.set_temperature_unit_preference(self.dashboard._temperature_unit)
         
         target_slots = self.dashboard._rows * self.dashboard._cols
         while len(self.dashboard.buttons) < target_slots:
@@ -160,6 +162,7 @@ class GridManager:
                 button.set_spans(sx, sy)
                 button.update_content()
                 button.button_style = getattr(self.dashboard, '_button_style', 'Gradient')
+                button.set_temperature_unit_preference(getattr(self.dashboard, '_temperature_unit', 'celsius'))
                 button.update_style()
                 button.set_border_effect(self.dashboard._border_effect)
                 button.show_dimming = self.dashboard._show_dimming
@@ -185,6 +188,7 @@ class GridManager:
         for i in range(config_idx, len(self.dashboard.buttons)):
             self.dashboard.buttons[i].update_content()
             self.dashboard.buttons[i].button_style = getattr(self.dashboard, '_button_style', 'Gradient')
+            self.dashboard.buttons[i].set_temperature_unit_preference(getattr(self.dashboard, '_temperature_unit', 'celsius'))
             self.dashboard.buttons[i].update_style()
             self.dashboard.buttons[i].set_border_effect(self.dashboard._border_effect)
         

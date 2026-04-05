@@ -112,9 +112,11 @@ class Dashboard(QWidget):
         self._show_dimming = app_config.get('show_dimming', False)
         self._glass_ui = app_config.get('glass_ui', False)
         self._button_style = app_config.get('button_style', 'Gradient')
+        self._temperature_unit = app_config.get('temperature_unit', 'celsius')
         
         # Propagate border effect to overlay manager
         self.overlay_manager.set_border_effect(self._border_effect)
+        self.overlay_manager.set_temperature_unit_preference(self._temperature_unit)
         
         # Grid Manager
         self.grid_manager = GridManager(self)
@@ -1543,6 +1545,7 @@ class Dashboard(QWidget):
         # Update custom colors
         self._show_dimming = app.get('show_dimming', False)
         self._glass_ui = app.get('glass_ui', False)
+        self._temperature_unit = app.get('temperature_unit', 'celsius')
         
         self._live_dimming = True
         
@@ -1550,6 +1553,9 @@ class Dashboard(QWidget):
         for btn in self.buttons:
             btn.set_border_effect(self._border_effect)
             btn.show_dimming = self._show_dimming
+            btn.set_temperature_unit_preference(self._temperature_unit)
+
+        self.overlay_manager.set_temperature_unit_preference(self._temperature_unit)
         
         # Update display (handles height/width changes nicely)
         if 'rows' in app and app['rows'] != self._rows:

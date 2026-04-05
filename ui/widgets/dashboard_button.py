@@ -14,6 +14,7 @@ from PyQt6.QtGui import (
 )
 from ui.icons import get_icon, get_mdi_font, Icons, get_icon_for_type
 from core.utils import SYSTEM_FONT
+from core.temperature_utils import format_temperature, is_temperature_entity
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.widgets.dashboard_button_styles import DashboardButtonStyleManager
 import math
@@ -55,6 +56,7 @@ class DashboardButton(QFrame):
         self._show_border_effect = False
         self._show_dimming = False
         self._brightness = 255
+        self.temperature_unit_preference = "celsius"
         
         # Internal state
         self._state = "off"
@@ -358,6 +360,11 @@ class DashboardButton(QFrame):
         self.style().polish(self)
         self._update_anim_bg_timer()
 
+    def set_temperature_unit_preference(self, preference: str):
+        if self.temperature_unit_preference != preference:
+            self.temperature_unit_preference = preference
+            self.update_content()
+
     # --- Animated background helpers ---
 
     def _update_anim_bg_timer(self):
@@ -439,24 +446,12 @@ class DashboardButton(QFrame):
         
         temp = attrs.get('temperature', '--')
         emoji = self._get_weather_emoji(state_str)
-        
-        # Build temperature unit suffix (e.g. "°C", "°F")
-        raw_unit = attrs.get('temperature_unit', '°')
-        # HA may return "°C", "°F", or just the symbol — normalize
-        if raw_unit in ('°C', '°F'):
-            unit = raw_unit
-        elif raw_unit in ('C', 'F'):
-            unit = f'°{raw_unit}'
-        else:
-            unit = '°'
-        
-        # Clean temp display
-        try:
-            temp_clean = f"{float(temp):.1f}".replace('.0', '')
-        except (ValueError, TypeError):
-            temp_clean = str(temp)
-        
-        temp_str = f"{temp_clean}{unit}"
+        temp_str = format_temperature(
+            temp,
+            attrs.get('temperature_unit'),
+            self.temperature_unit_preference,
+            precision=1,
+        )
         
         is_huge = self.span_x >= 2 and self.span_y >= 2
         is_wide = self.span_x >= 2
@@ -561,10 +556,17 @@ class DashboardButton(QFrame):
         try:
             f_val = float(val)
             step = float(attrs.get('step', 1.0))
-            # Determine precision based on step
             precision = 0 if step.is_integer() else len(str(step).split('.')[-1])
-            formatted_num = f"{f_val:.{precision}f}"
-            display_val = f"{formatted_num}{unit}"
+            if is_temperature_entity(attrs):
+                display_val = format_temperature(
+                    f_val,
+                    unit,
+                    self.temperature_unit_preference,
+                    precision=precision,
+                )
+            else:
+                formatted_num = f"{f_val:.{precision}f}"
+                display_val = f"{formatted_num}{unit}"
         except (ValueError, TypeError):
             display_val = f"{val}{unit}"
             
@@ -577,7 +579,7 @@ class DashboardButton(QFrame):
     def _update_climate_view(self):
         label = self.config.get('label', '')
         self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
-        self.value_label.setText(self._value or "--°C")
+        self.value_label.setText(self._value or "--")
         self.name_label.setText(label)
         self.setProperty("type", "climate")
         self.value_label.show()
@@ -797,14 +799,28 @@ class DashboardButton(QFrame):
             # Update sensor value
             value = state.get('state', '--')
             unit = attributes.get('unit_of_measurement', '')
-            self.set_value(f"{value}{unit}")
+            if is_temperature_entity(attributes):
+                self.set_value(
+                    format_temperature(
+                        value,
+                        unit,
+                        self.temperature_unit_preference,
+                        precision=self.config.get('precision', 1),
+                    )
+                )
+            else:
+                self.set_value(f"{value}{unit}")
         elif btn_type == 'climate':
             # Update climate target temperature
             temp = attributes.get('temperature', '--')
-            if temp != '--':
-                self.set_value(f"{temp}°C")
-            else:
-                self.set_value("--°C")
+            self.set_value(
+                format_temperature(
+                    temp,
+                    attributes.get('temperature_unit'),
+                    self.temperature_unit_preference,
+                    precision=1,
+                )
+            )
             # Also update state for styling
             hvac_action = state.get('state', 'off')
             self.set_state('on' if hvac_action not in ['off', 'unavailable'] else 'off')

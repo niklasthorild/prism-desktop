@@ -58,7 +58,12 @@ class ConfigManager:
         
         return {
             "home_assistant": {"url": "", "token": ""},
-            "appearance": {"theme": "system", "rows": 2, "button_style": "Gradient", "tray_position": "bottom"},
+            "appearance": {
+                "theme": "system",
+                "rows": 2,
+                "button_style": "Gradient",
+                "tray_position": "bottom",
+            },
             "shortcut": {"type": "keyboard", "value": "<ctrl>+<alt>+h"},
             "buttons": []
         }

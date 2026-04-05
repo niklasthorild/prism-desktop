@@ -343,6 +343,10 @@ class SettingsWidget(QWidget):
         self.tray_position_combo.setMinimumWidth(120)
         self.form.addRow("Tray Position:", self.tray_position_combo)
 
+        self.temperature_unit_combo = QComboBox()
+        self.temperature_unit_combo.addItems(["Celsius", "Fahrenheit"])
+        self.temperature_unit_combo.setMinimumWidth(120)
+        self.form.addRow("Temperature Unit:", self.temperature_unit_combo)
         # Border Effect
         from ui.widgets.effect_combobox import EffectComboBox
         self.border_effect_combo = EffectComboBox()
@@ -470,6 +474,10 @@ class SettingsWidget(QWidget):
         self.tray_position_combo.setCurrentIndex(
             tray_position_map.get(app.get('tray_position', 'bottom'), 0)
         )
+        temperature_unit_map = {'celsius': 0, 'fahrenheit': 1}
+        self.temperature_unit_combo.setCurrentIndex(
+            temperature_unit_map.get(app.get('temperature_unit', 'celsius'), 0)
+        )
         
         effect = app.get('border_effect', 'Rainbow')
         
@@ -515,10 +523,12 @@ class SettingsWidget(QWidget):
         # Appearance
         theme_map = {0: 'system', 1: 'light', 2: 'dark'}
         tray_position_map = {0: 'bottom', 1: 'top'}
+        temperature_unit_map = {0: 'celsius', 1: 'fahrenheit'}
         self.config.setdefault('appearance', {})
         self.config['appearance'].update({
             'theme': theme_map.get(self.theme_combo.currentIndex(), 'system'),
             'tray_position': tray_position_map.get(self.tray_position_combo.currentIndex(), 'bottom'),
+            'temperature_unit': temperature_unit_map.get(self.temperature_unit_combo.currentIndex(), 'celsius'),
             'border_effect': self.border_effect_combo.currentText(),
             'button_style': self.button_style_combo.currentText(),
             'show_dimming': self.show_dimming_check.isChecked(),
