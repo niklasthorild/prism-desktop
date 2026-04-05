@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect, QFrame, QColorDialog
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QProcess
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
 
@@ -22,6 +22,17 @@ from services.location_manager import (
     is_geoclue2_available, ensure_desktop_file,
     get_distro_info, get_geoclue2_install_hint,
 )
+try:
+    from services.wayland_global_shortcut import is_kde_wayland_session, is_wayland_session, supports_wayland_global_shortcuts
+except Exception:
+    def is_kde_wayland_session():
+        return False
+
+    def is_wayland_session():
+        return False
+
+    def supports_wayland_global_shortcuts():
+        return False
 
 class SettingsWidget(QWidget):
     """
@@ -51,6 +62,7 @@ class SettingsWidget(QWidget):
         
         self.setup_ui()
         self.load_config()
+        self._update_shortcut_controls()
         
         # Connect input manager if available
         if self.input_manager:
@@ -142,6 +154,11 @@ class SettingsWidget(QWidget):
                 max-height: 32px;
                 color: {colors['text']};
                 selection-background-color: {colors['accent']};
+            }}
+            QLineEdit[locked="true"] {{
+                background-color: rgba(0, 0, 0, 0.18);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                color: rgba(255, 255, 255, 0.55);
             }}
             QComboBox QAbstractItemView {{
                 background-color: {colors['base']};
@@ -377,8 +394,13 @@ class SettingsWidget(QWidget):
         # --- Shortcut Section ---
         self._add_section_header("SHORTCUT")
 
-        
+        shortcut_container = QWidget()
+        shortcut_container_layout = QVBoxLayout(shortcut_container)
+        shortcut_container_layout.setContentsMargins(0, 0, 0, 0)
+        shortcut_container_layout.setSpacing(2)
+
         shortcut_row = QHBoxLayout()
+        shortcut_row.setContentsMargins(0, 0, 0, 0)
         self.shortcut_display = QLineEdit()
         self.shortcut_display.setReadOnly(True)
         self.shortcut_display.setPlaceholderText("None")
@@ -406,8 +428,28 @@ class SettingsWidget(QWidget):
         shortcut_row.addSpacing(12)
         shortcut_row.addWidget(self.record_btn)
         shortcut_row.addStretch(2) 
-        
-        self.form.addRow("App Toggle:", shortcut_row)
+        shortcut_container_layout.addLayout(shortcut_row)
+
+        self.shortcut_aux = QWidget()
+        shortcut_aux_layout = QVBoxLayout(self.shortcut_aux)
+        shortcut_aux_layout.setContentsMargins(0, 0, 0, 0)
+        shortcut_aux_layout.setSpacing(1)
+
+        self.shortcut_hint = QLabel("")
+        self.shortcut_hint.setWordWrap(True)
+        self.shortcut_hint.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.shortcut_hint.hide()
+        shortcut_aux_layout.addWidget(self.shortcut_hint)
+
+        self.kde_shortcuts_btn = QPushButton("Open KDE Shortcuts")
+        self.kde_shortcuts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.kde_shortcuts_btn.clicked.connect(self.open_kde_shortcuts)
+        self.kde_shortcuts_btn.hide()
+        shortcut_aux_layout.addWidget(self.kde_shortcuts_btn, 0, Qt.AlignmentFlag.AlignLeft)
+
+        self.shortcut_aux.hide()
+        shortcut_container_layout.addWidget(self.shortcut_aux)
+        self.form.addRow("App Toggle:", shortcut_container)
         
         # --- Support Section ---
         self._add_section_header("SUPPORT")
@@ -510,6 +552,7 @@ class SettingsWidget(QWidget):
         
         sc = self.config.get('shortcut', {})
         self.shortcut_display.setText(sc.get('value', ''))
+        self._update_shortcut_controls()
         
     def save_settings(self):
         """Save and emit config."""
@@ -592,6 +635,10 @@ class SettingsWidget(QWidget):
 
 
     def toggle_recording(self, checked):
+        if self._should_delegate_shortcuts_to_kde():
+            self.record_btn.setChecked(False)
+            return
+
         if not self.input_manager:
             self.record_btn.setChecked(False)
             return
@@ -624,6 +671,75 @@ class SettingsWidget(QWidget):
         
         # Immediately re-register the new shortcut so it works without needing Save
         self.input_manager.update_shortcut(shortcut)
+
+    def _should_delegate_shortcuts_to_kde(self) -> bool:
+        """Return whether KDE owns global shortcut changes on this system."""
+        return sys.platform == 'linux' and is_kde_wayland_session()
+
+    def _is_unsupported_wayland_shortcut_env(self) -> bool:
+        """Return whether app-toggle shortcuts are unsupported on this Wayland desktop."""
+        return sys.platform == 'linux' and is_wayland_session() and not supports_wayland_global_shortcuts()
+
+    def _update_shortcut_controls(self):
+        """Adjust app-toggle shortcut controls for the current desktop."""
+        if self._should_delegate_shortcuts_to_kde():
+            self.record_btn.setChecked(False)
+            self.record_btn.setEnabled(False)
+            self.record_btn.hide()
+            self.shortcut_display.setEnabled(False)
+            self.shortcut_display.setProperty("locked", True)
+            self.shortcut_display.setText("Disabled")
+            self.shortcut_display.setToolTip("")
+            self.shortcut_hint.setText(
+                "On KDE Wayland, the app-toggle shortcut is managed by KDE. "
+                "Change it in KDE Shortcuts instead of recording it here."
+            )
+            self.shortcut_aux.show()
+            self.shortcut_hint.show()
+            self.kde_shortcuts_btn.show()
+        elif self._is_unsupported_wayland_shortcut_env():
+            self.record_btn.setChecked(False)
+            self.record_btn.setEnabled(False)
+            self.record_btn.hide()
+            self.shortcut_display.setEnabled(False)
+            self.shortcut_display.setProperty("locked", True)
+            self.shortcut_display.setText("Disabled")
+            self.shortcut_display.setToolTip("")
+            self.shortcut_hint.setText(
+                "Global app-toggle shortcuts are not currently supported on this Wayland desktop. "
+                "The in-window entity shortcuts still work while Prism is focused."
+            )
+            self.shortcut_aux.show()
+            self.shortcut_hint.show()
+            self.kde_shortcuts_btn.hide()
+        else:
+            self.record_btn.show()
+            self.shortcut_display.setEnabled(True)
+            self.shortcut_display.setProperty("locked", False)
+            sc = self.config.get('shortcut', {})
+            self.shortcut_display.setText(sc.get('value', ''))
+            self.shortcut_display.setToolTip("")
+            self.record_btn.setEnabled(True)
+            self.record_btn.setToolTip("")
+            self.shortcut_aux.hide()
+            self.shortcut_hint.hide()
+            self.kde_shortcuts_btn.hide()
+
+        self.style().unpolish(self.shortcut_display)
+        self.style().polish(self.shortcut_display)
+        self.shortcut_display.update()
+
+    def open_kde_shortcuts(self):
+        """Open KDE's shortcut settings module when possible."""
+        commands = [
+            ("kcmshell6", ["kcm_keys"]),
+            ("systemsettings", ["kcm_keys"]),
+        ]
+        for program, args in commands:
+            if QProcess.startDetached(program, args):
+                return
+
+        QDesktopServices.openUrl(QUrl("settings://keyboard/shortcuts"))
 
     def test_connection(self):
         url = self.url_input.text().strip()
