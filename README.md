@@ -65,7 +65,7 @@ Download the latest `appimage` from the Releases page. or download and run from 
 
 **GNOME:** 
 - make sure to install `AppIndicator and KStatusNotifierItem Support` through `Extension Manager
-- Wayland: keyboard shortcuts doesn't work completely yet.
+- Wayland: the app-toggle shortcut now uses the desktop portal when the compositor supports `org.freedesktop.portal.GlobalShortcuts` (works on KDE). GNOME still has limited global shortcut support.
 
 ### Manual / Portable
 You can also download the standalone `.exe` if you prefer not to install anything. Just run it, and it will create a configuration file in the same directory.
