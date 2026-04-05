@@ -22,7 +22,17 @@ from services.location_manager import (
     is_geoclue2_available, ensure_desktop_file,
     get_distro_info, get_geoclue2_install_hint,
 )
-from services.wayland_global_shortcut import is_kde_wayland_session, is_wayland_session, supports_wayland_global_shortcuts
+try:
+    from services.wayland_global_shortcut import is_kde_wayland_session, is_wayland_session, supports_wayland_global_shortcuts
+except Exception:
+    def is_kde_wayland_session():
+        return False
+
+    def is_wayland_session():
+        return False
+
+    def supports_wayland_global_shortcuts():
+        return False
 
 class SettingsWidget(QWidget):
     """
