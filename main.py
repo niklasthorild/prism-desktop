@@ -127,7 +127,7 @@ class PrismDesktopApp(QObject):
 
         # Show Dashboard on Startup
         if self.dashboard:
-            QTimer.singleShot(0, self.dashboard.show_near_tray)
+            QTimer.singleShot(0, self._show_dashboard_near_tray)
             
         # Check for updates
         QTimer.singleShot(2000, self.check_for_updates)
@@ -137,6 +137,17 @@ class PrismDesktopApp(QObject):
         shortcut_config = self.config.get('shortcut', {'type': 'keyboard', 'value': '<ctrl>+<alt>+h'})
         self.input_manager.update_shortcut(shortcut_config)
         self.input_manager.triggered.connect(self._toggle_dashboard)
+
+    def _tray_geometry(self) -> QRect:
+        """Return the tray icon geometry when available."""
+        if self.tray_manager:
+            return self.tray_manager.geometry()
+        return QRect()
+
+    def _show_dashboard_near_tray(self):
+        """Show the dashboard using tray geometry when Qt provides it."""
+        if self.dashboard:
+            self.dashboard.show_near_tray(self._tray_geometry())
     
     def save_config(self):
         """Save configuration to file via ConfigManager."""
@@ -336,13 +347,13 @@ class PrismDesktopApp(QObject):
             if not self.dashboard.isVisible():
                 # Apply cached images immediately before showing to prevent black flash
                 self.dashboard.apply_camera_cache(self._camera_cache)
-            self.dashboard.toggle()
+            self.dashboard.toggle(self._tray_geometry())
     
     @pyqtSlot()
     def _show_settings(self):
         if self.dashboard:
             if not self.dashboard.isVisible():
-                self.dashboard.show_near_tray()
+                self._show_dashboard_near_tray()
                 QTimer.singleShot(0, self.dashboard.show_settings)
                 return
             self.dashboard.show_settings()
@@ -382,7 +393,7 @@ class PrismDesktopApp(QObject):
             # Re-apply camera images after rebuild
             self.dashboard.apply_camera_cache(self._camera_cache)
             if self.dashboard.isVisible():
-                self.dashboard.refresh_tray_anchor(move_now=True)
+                self.dashboard.refresh_tray_anchor(move_now=True, tray_geometry=self._tray_geometry())
         
         if self.input_manager:
              self.input_manager.update_shortcut(self.config.get('shortcut', {}))

@@ -12,7 +12,7 @@ from typing import Callable, Optional
 from PIL import Image, ImageDraw
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, pyqtSignal, QRect
 
 
 class TraySignals(QObject):
@@ -177,6 +177,12 @@ class TrayManager:
         """Update the tray icon tooltip."""
         if self._tray:
             self._tray.setToolTip(title)
+
+    def geometry(self) -> QRect:
+        """Return the tray icon geometry when available."""
+        if self._tray:
+            return self._tray.geometry()
+        return QRect()
 
     # ------------------------------------------------------------------
     # Helpers
