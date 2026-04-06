@@ -283,6 +283,9 @@ def get_icon_for_type(entity_type: str, state: str = "off") -> str:
 
     elif entity_type == "lock":
         return Icons.LOCK if state == "locked" else Icons.LOCK_OPEN
-    
+
+    elif entity_type == "sun":
+        return Icons.WEATHER_SUNNY  # MDI fallback; painter handles actual rendering
+
     # Default/empty
     return Icons.PLUS_CIRCLE

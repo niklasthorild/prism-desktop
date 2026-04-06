@@ -33,6 +33,7 @@ class ButtonEditWidget(QWidget):
         ("Scene", "scene"),
         ("Script", "script"),
         ("Sensor", "widget"),
+        ("Sun", "sun"),
         ("Vacuum", "vacuum"),
         ("Weather", "weather"),
         ("3D Printer", "3d_printer")
@@ -276,6 +277,12 @@ class ButtonEditWidget(QWidget):
         self.precision_spin.setToolTip("Decimal places")
         self.precision_spin.setVisible(False)
         self.form.addRow("Decimals:", self.precision_spin)
+
+        # Sun — Show Remaining Daylight toggle
+        self.sun_remaining_check = ToggleSwitch("Show solar timer")
+        self.sun_remaining_check.setToolTip("When enabled and button is 2+ wide, shows time until next sunrise or sunset")
+        self.sun_remaining_check.setVisible(False)
+        self.form.addRow("", self.sun_remaining_check)
         
         # Service (Switches only)
         self.service_label = QLabel("Service:")
@@ -430,42 +437,45 @@ class ButtonEditWidget(QWidget):
         self.color_label = self.form.labelForField(color_widget)
         
         # --- Shortcut Section ---
-        self._add_section_header("SHORTCUT")
-        
+        self.shortcut_header = self._add_section_header("SHORTCUT")
+
         self.custom_shortcut_check = ToggleSwitch("Enable Custom Shortcut")
         self.custom_shortcut_check.toggled.connect(self.on_custom_shortcut_toggled)
         self.form.addRow("", self.custom_shortcut_check)
-        
-        shortcut_row = QHBoxLayout()
+
+        shortcut_keys_container = QWidget()
+        shortcut_row = QHBoxLayout(shortcut_keys_container)
+        shortcut_row.setContentsMargins(0, 0, 0, 0)
         self.shortcut_display = QLineEdit()
         self.shortcut_display.setReadOnly(True)
         self.shortcut_display.setPlaceholderText("None")
-        
+
         self.record_btn = QPushButton()
         self.record_btn.setObjectName("recordBtn")
         self.record_btn.setCheckable(True)
         self.record_btn.setFixedSize(40, 32)
         self.record_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.record_btn.clicked.connect(self.toggle_recording)
-        
+
         # Inner Icon Widget
         btn_layout = QHBoxLayout(self.record_btn)
         btn_layout.setContentsMargins(0,0,0,0)
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         self.record_icon = QWidget()
         self.record_icon.setObjectName("recordIcon")
         self.record_icon.setFixedSize(12, 12)
         self.record_icon.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         btn_layout.addWidget(self.record_icon)
-        
+
         # Add to row
         shortcut_row.addWidget(self.shortcut_display, 8)
         shortcut_row.addSpacing(12)
         shortcut_row.addWidget(self.record_btn)
-        shortcut_row.addStretch(2) 
-        
-        self.form.addRow("Keys:", shortcut_row)
+        shortcut_row.addStretch(2)
+
+        self.shortcut_keys_container = shortcut_keys_container
+        self.form.addRow("Keys:", shortcut_keys_container)
         
         layout.addLayout(self.form)
         self.adjustSize()
@@ -551,7 +561,8 @@ class ButtonEditWidget(QWidget):
             'weather': {'weather'},
             'lock': {'lock'},
             'lawn_mower': {'lawn_mower'},
-            'vacuum': {'vacuum'}
+            'vacuum': {'vacuum'},
+            'sun': {'sun'}
         }
         allowed_domains = domain_map.get(current_type)
         
@@ -717,23 +728,37 @@ class ButtonEditWidget(QWidget):
         # Disable appearance section for camera (no icon/color needed)
         self._set_appearance_enabled(not is_camera)
         
+        # Sun-specific toggle
+        self.sun_remaining_check.setVisible(current_type == 'sun')
+
+        # Sun has no label and no shortcut — hide those rows
+        is_sun = current_type == 'sun'
+        self.label_input.setVisible(not is_sun)
+        if self.form.labelForField(self.label_input):
+            self.form.labelForField(self.label_input).setVisible(not is_sun)
+
+        self.shortcut_header.setVisible(not is_sun)
+        self.custom_shortcut_check.setVisible(not is_sun)
+        self.shortcut_keys_container.setVisible(not is_sun)
+        if self.form.labelForField(self.shortcut_keys_container):
+            self.form.labelForField(self.shortcut_keys_container).setVisible(not is_sun)
+
         # Icon Visibility
-        # Remove option to choose icon for sensors and 3D printers
-        show_icon = current_type not in ['widget', '3d_printer']
+        # Remove option to choose icon for sensors, 3D printers, and sun (painter handles it)
+        show_icon = current_type not in ['widget', '3d_printer', 'sun']
         self.icon_input.setVisible(show_icon)
         if hasattr(self, 'icon_label'):
             self.icon_label.setVisible(show_icon)
-        
+
         # Color Option Visibility
-        # Remove for Weather and Camera. Sensors (widget) now have color choice.
-        show_color = current_type not in ['weather', 'camera']
+        # Remove for Weather, Camera, and Sun (dot color is position-based)
+        show_color = current_type not in ['weather', 'camera', 'sun']
         if hasattr(self, 'color_widget'):
             self.color_widget.setVisible(show_color)
         if hasattr(self, 'color_label'):
             self.color_label.setVisible(show_color)
             
-        # Default Color Logic for Sensors
-        # If switching to Sensor and color is default Blue, switch to Sensor Gray
+        # Default color per type when coming from the generic blue default
         if current_type == 'widget' and self.selected_color == "#4285F4":
             self.select_color("#3C3C3C")
         
@@ -854,6 +879,7 @@ class ButtonEditWidget(QWidget):
         # (Advanced mode checked logic removed)
         self.show_album_art_check.setChecked(self.config.get('show_album_art', True))
         self.animated_bg_toggle.setChecked(self.config.get('animated_bg', True))
+        self.sun_remaining_check.setChecked(self.config.get('show_remaining_daylight', False))
 
         # Precision
         self.precision_spin.setValue(self.config.get('precision', 1))
@@ -962,6 +988,9 @@ class ButtonEditWidget(QWidget):
                 new_config['script_variables'] = variables
             else:
                 new_config.pop('script_variables', None)
+
+        if new_config['type'] == 'sun':
+            new_config['show_remaining_daylight'] = self.sun_remaining_check.isChecked()
 
         if new_config['type'] == 'automation':
             new_config['action'] = 'trigger' if self.automation_action_combo.currentIndex() == 1 else 'toggle'
