@@ -5,7 +5,8 @@ Prism Desktop brings Home Assistant to your PC with a modern, lightweight deskto
 It features a sleek dashboard with smooth animations, build in notifications, intuitive drag-and-drop customization, and deep integration with Home Assistant entities.
 
 
-<img width="831" height="657" alt="image" src="https://github.com/user-attachments/assets/88a3da63-1007-403e-b4a4-910e51049e0c" />
+<img width="832" height="661" alt="image" src="https://github.com/user-attachments/assets/7f2bf20a-61af-48eb-89b6-4c7303b427f1" />
+
 
 
 
@@ -30,6 +31,7 @@ It features a sleek dashboard with smooth animations, build in notifications, in
 - Lawn Mower
 - Media Controller
 - Scene
+- Sun
 - Script
 - Sensor
 - Vacuum
