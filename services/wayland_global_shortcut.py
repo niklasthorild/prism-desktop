@@ -231,10 +231,7 @@ class WaylandGlobalShortcut:
             # desktop file has not been indexed yet. Treat those cases as a
             # warning so Prism can keep using the portal path where supported.
             text = reply.body[0] if reply.body else reply.error_name
-            if (
-                reply.error_name != "org.freedesktop.DBus.Error.Failed"
-                or "App info not found" not in text
-            ):
+            if "App info not found" not in text:
                 raise RuntimeError(f"Registry.Register failed: {text}")
             logger.warning("Wayland portal app id registration skipped: %s", text)
         else:

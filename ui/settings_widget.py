@@ -4,6 +4,9 @@ Settings Widget
 Clean, minimalist, and bug-free implementation of the Settings panel.
 """
 
+import os
+import shutil
+import subprocess
 import sys
 from typing import Optional
 from PyQt6.QtWidgets import (
@@ -12,7 +15,7 @@ from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect, QFrame, QColorDialog
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QProcess
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
 
@@ -735,13 +738,19 @@ class SettingsWidget(QWidget):
 
     def open_kde_shortcuts(self):
         """Open KDE's shortcut settings module when possible."""
-        commands = [
-            ("kcmshell6", ["kcm_keys"]),
-            ("systemsettings", ["kcm_keys"]),
-        ]
-        for program, args in commands:
-            if QProcess.startDetached(program, args):
-                return
+        # Strip AppImage library overrides so system KDE tools use their own libs.
+        env = os.environ.copy()
+        for key in ("LD_LIBRARY_PATH", "LD_PRELOAD"):
+            env.pop(key, None)
+
+        for program in ("kcmshell6", "systemsettings"):
+            exe = shutil.which(program, path=env.get("PATH"))
+            if exe:
+                try:
+                    subprocess.Popen([exe, "kcm_keys"], env=env)
+                    return
+                except OSError:
+                    continue
 
         QDesktopServices.openUrl(QUrl("settings://keyboard/shortcuts"))
 
