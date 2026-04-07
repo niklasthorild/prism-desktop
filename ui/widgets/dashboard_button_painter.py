@@ -636,7 +636,6 @@ class DashboardButtonPainter:
             painter.setPen(text_color)
             painter.setFont(font_val)
             painter.drawText(r_noz, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, nozzle_str)
-            
             # Bed
             r_bed = QRectF(stats_x + part_w, cam_h, part_w, strip_h)
             painter.setFont(font_lbl)
@@ -1071,22 +1070,22 @@ class DashboardButtonPainter:
         painter.restore()
 
     @staticmethod
-    def draw_button_bevel_edge(painter, rect, intensity_modifier=1.0, is_top_clamped=False):
+    def draw_button_bevel_edge(painter, rect, intensity_modifier=1.0, is_top_clamped=False, corner_radius=11):
         """Draws a bright top-left specular highlight to simulate physical glass/plastic thickness."""
         painter.save()
-        
+
         line_rect = QRectF(rect)
-            
+
         highlight_grad = QLinearGradient(line_rect.topLeft(), line_rect.topRight())
-        
+
         # Base opacities
         alpha_start = min(255, int(45 * intensity_modifier))
         alpha_mid = min(255, int(15 * intensity_modifier))
-        
+
         highlight_grad.setColorAt(0.0, QColor(255, 255, 255, alpha_start)) # Bright left edge
         highlight_grad.setColorAt(0.4, QColor(255, 255, 255, alpha_mid))   # Fading across top
         highlight_grad.setColorAt(1.0, QColor(255, 255, 255, 0))           # Transparent right
-        
+
         def make_path(adj_rect, r):
             p = QPainterPath()
             if is_top_clamped:
@@ -1100,19 +1099,19 @@ class DashboardButtonPainter:
             else:
                 p.addRoundedRect(adj_rect, r, r)
             return p
-        
+
         # Stroke an inner border path
         pen = QPen(QBrush(highlight_grad), 2.0)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawPath(make_path(line_rect.adjusted(1, 1, -1, -1), 11))
-            
+        painter.drawPath(make_path(line_rect.adjusted(1, 1, -1, -1), corner_radius))
+
         # Perimeter Outline (Separates dark surfaces from dark app backgrounds)
         perimeter_alpha = min(255, int(15 * intensity_modifier))
         perimeter_pen = QPen(QColor(255, 255, 255, perimeter_alpha)) # Very subtle white frame
         perimeter_pen.setWidthF(1.0)
         painter.setPen(perimeter_pen)
-        painter.drawPath(make_path(line_rect.adjusted(0.5, 0.5, -0.5, -0.5), 11.5))
+        painter.drawPath(make_path(line_rect.adjusted(0.5, 0.5, -0.5, -0.5), corner_radius + 0.5))
 
         painter.restore()
 

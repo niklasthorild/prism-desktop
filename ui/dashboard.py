@@ -1076,6 +1076,10 @@ class Dashboard(QWidget):
             """
             self.btn_left.setStyleSheet(btn_style)
             self.btn_settings.setStyleSheet(btn_style)
+            self.btn_left.button_style = self._button_style
+            self.btn_settings.button_style = self._button_style
+            self.btn_left.update()
+            self.btn_settings.update()
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts."""
@@ -1545,6 +1549,7 @@ class Dashboard(QWidget):
         # Update custom colors
         self._show_dimming = app.get('show_dimming', False)
         self._glass_ui = app.get('glass_ui', False)
+        self._button_style = app.get('button_style', 'Gradient')
         self._temperature_unit = app.get('temperature_unit', 'celsius')
         
         self._live_dimming = True
@@ -1553,6 +1558,7 @@ class Dashboard(QWidget):
         for btn in self.buttons:
             btn.set_border_effect(self._border_effect)
             btn.show_dimming = self._show_dimming
+            btn.button_style = self._button_style
             btn.set_temperature_unit_preference(self._temperature_unit)
 
         self.overlay_manager.set_temperature_unit_preference(self._temperature_unit)
