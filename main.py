@@ -837,7 +837,9 @@ class PrismDesktopApp(QObject):
 
 if __name__ == '__main__':
     # Bootstrap
-    app = QApplication(sys.argv)
+    qt_argv = list(sys.argv)
+    qt_argv[0] = "prism-desktop"
+    app = QApplication(qt_argv)
     app.setQuitOnLastWindowClosed(False)
     
     # Use qasync Event Loop
