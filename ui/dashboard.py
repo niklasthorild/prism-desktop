@@ -1696,7 +1696,8 @@ class Dashboard(QWidget):
             if self.settings_widget:
                 self.settings_widget.setMinimumSize(0, 0)
                 self.settings_widget.setMaximumSize(16777215, 16777215)
-                self.settings_widget.setFixedHeight(target_height)
+                # Testing if this fixes linux clipping issue
+                self.settings_widget.setFixedHeight(self.settings_widget.get_content_height())
         
         elif target_view == 'edit_button':
             if hasattr(self, 'edit_widget'):
