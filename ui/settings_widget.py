@@ -4,6 +4,9 @@ Settings Widget
 Clean, minimalist, and bug-free implementation of the Settings panel.
 """
 
+import os
+import shutil
+import subprocess
 import sys
 from typing import Optional
 from PyQt6.QtWidgets import (
@@ -12,7 +15,7 @@ from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect, QFrame, QColorDialog
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QProcess
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
 
@@ -446,7 +449,6 @@ class SettingsWidget(QWidget):
         self.kde_shortcuts_btn.clicked.connect(self.open_kde_shortcuts)
         self.kde_shortcuts_btn.hide()
         shortcut_aux_layout.addWidget(self.kde_shortcuts_btn, 0, Qt.AlignmentFlag.AlignLeft)
-
         self.shortcut_aux.hide()
         shortcut_container_layout.addWidget(self.shortcut_aux)
         self.form.addRow("App Toggle:", shortcut_container)
@@ -639,6 +641,10 @@ class SettingsWidget(QWidget):
             self.record_btn.setChecked(False)
             return
 
+        if self._is_unsupported_wayland_shortcut_env():
+            self.record_btn.setChecked(False)
+            return
+
         if not self.input_manager:
             self.record_btn.setChecked(False)
             return
@@ -707,6 +713,7 @@ class SettingsWidget(QWidget):
             self.shortcut_display.setToolTip("")
             self.shortcut_hint.setText(
                 "Global app-toggle shortcuts are not currently supported on this Wayland desktop. "
+                "Create a custom keybind that runs 'prism-desktop --toggle' instead. "
                 "The in-window entity shortcuts still work while Prism is focused."
             )
             self.shortcut_aux.show()
@@ -731,13 +738,19 @@ class SettingsWidget(QWidget):
 
     def open_kde_shortcuts(self):
         """Open KDE's shortcut settings module when possible."""
-        commands = [
-            ("kcmshell6", ["kcm_keys"]),
-            ("systemsettings", ["kcm_keys"]),
-        ]
-        for program, args in commands:
-            if QProcess.startDetached(program, args):
-                return
+        # Strip AppImage library overrides so system KDE tools use their own libs.
+        env = os.environ.copy()
+        for key in ("LD_LIBRARY_PATH", "LD_PRELOAD"):
+            env.pop(key, None)
+
+        for program in ("kcmshell6", "systemsettings"):
+            exe = shutil.which(program, path=env.get("PATH"))
+            if exe:
+                try:
+                    subprocess.Popen([exe, "kcm_keys"], env=env)
+                    return
+                except OSError:
+                    continue
 
         QDesktopServices.openUrl(QUrl("settings://keyboard/shortcuts"))
 

@@ -227,11 +227,13 @@ class WaylandGlobalShortcut:
             body=[APP_ID, {}],
         ))
         if reply.message_type == MessageType.ERROR:
-            # Already registered on this connection is harmless. Other errors matter.
+            # The registry helper is optional and may fail when the host app's
+            # desktop file has not been indexed yet. Treat those cases as a
+            # warning so Prism can keep using the portal path where supported.
             text = reply.body[0] if reply.body else reply.error_name
-            if reply.error_name != "org.freedesktop.DBus.Error.Failed":
+            if "App info not found" not in text:
                 raise RuntimeError(f"Registry.Register failed: {text}")
-            logger.info("Wayland portal app id registration skipped: %s", text)
+            logger.warning("Wayland portal app id registration skipped: %s", text)
         else:
             logger.info("Wayland portal app id registered: %s", APP_ID)
 
