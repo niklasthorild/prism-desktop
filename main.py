@@ -65,6 +65,8 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from core.temperature_utils import normalize_temperature_unit
 
+VERSION = "1.4.4"
+
 def _create_task_safe(coro):
     """Schedule an async task safely from synchronous Qt context.
     

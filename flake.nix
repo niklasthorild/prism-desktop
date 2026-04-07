@@ -15,7 +15,7 @@
     {
       packages = forAllSystems (pkgs:
         let
-          version = "1.4.3";
+          version = "1.4.4";
 
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6

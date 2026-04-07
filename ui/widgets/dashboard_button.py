@@ -63,6 +63,14 @@ class DashboardButton(QFrame):
         self._value = None
         self._ha_icon = None  # Icon from Home Assistant state
         self._media_state = {}  # Full media player state
+
+        # Sun entity state
+        self.sun_state = 'unknown'
+        self.sun_next_rising = None
+        self.sun_next_setting = None
+        self.sun_elevation = 0.0
+        self.sun_rising = False
+        self.sun_pulse_phase = 0.0
         self._album_art = None  # QPixmap for album art
         self._drag_start_pos = None
         self._is_resizing = False
@@ -353,6 +361,8 @@ class DashboardButton(QFrame):
             self._update_vacuum_view()
         elif btn_type == 'input_number':
             self._update_input_number_view()
+        elif btn_type == 'sun':
+            self._update_sun_view()
         else:
             self._update_default_view(btn_type)
             
@@ -370,8 +380,8 @@ class DashboardButton(QFrame):
     def _update_anim_bg_timer(self):
         """Start or stop the animated background timer based on current state."""
         should_run = (
-            self.config.get('type') == 'media_player'
-            and self.config.get('animated_bg', True)
+            (self.config.get('type') == 'media_player' and self.config.get('animated_bg', True))
+            or self.config.get('type') == 'sun'
         )
         if should_run and not self._anim_bg_timer.isActive():
             self._anim_bg_timer.start()
@@ -381,6 +391,8 @@ class DashboardButton(QFrame):
     def _tick_animated_bg(self):
         """Advance animated background by one frame."""
         self._anim_bg_frame += 1
+        if self.config.get('type') == 'sun':
+            self.sun_pulse_phase = (self.sun_pulse_phase + 1.0 / 90.0) % 1.0
         self.update()
 
     def _ensure_anim_bg_layers(self, seed: int):
@@ -677,6 +689,15 @@ class DashboardButton(QFrame):
         self.value_label.show()
         self.name_label.show()
 
+    def _update_sun_view(self):
+        """Sun entity: all rendering is done by the painter."""
+        self._state = 'on'  # always active so QSS renders at full opacity
+        self.value_label.hide()
+        self.name_label.hide()
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setProperty("type", "sun")
+        self.update()
+
     def _update_default_view(self, btn_type):
         """Default view for switch, light, lock, etc."""
         label = self.config.get('label', '')
@@ -847,6 +868,14 @@ class DashboardButton(QFrame):
             self.set_state(state.get('state', 'unknown'))
         elif btn_type == 'vacuum':
             self.set_state(state.get('state', 'unknown'))
+        elif btn_type == 'sun':
+            self.sun_state = state.get('state', 'unknown')
+            attrs = state.get('attributes', {})
+            self.sun_next_rising  = attrs.get('next_rising')
+            self.sun_next_setting = attrs.get('next_setting')
+            self.sun_elevation    = float(attrs.get('elevation', 0.0))
+            self.sun_rising       = bool(attrs.get('rising', False))
+            self.update()
         elif btn_type == 'automation':
             # Update automation state (on/off)
             self.set_state(state.get('state', 'off'))
@@ -1218,10 +1247,12 @@ class DashboardButton(QFrame):
             dx_steps = round(diff.x() / 90.0) # Approx cell width + gap
             dy_steps = round(diff.y() / 90.0) 
             
-            # Clamp: max 4 wide, max 3 tall explicitly for 3d printer
-            new_span_x = max(1, min(4, self._resize_start_span[0] + dx_steps))
-            max_y_allowed = 3 if self.config.get('type') == '3d_printer' else 2
-            new_span_y = max(1, min(max_y_allowed, self._resize_start_span[1] + dy_steps))
+            # Clamp per type
+            btn_type = self.config.get('type', '')
+            max_x = 2 if btn_type == 'sun' else 4
+            max_y = 2 if btn_type in ('sun', '3d_printer') else 2
+            new_span_x = max(1, min(max_x, self._resize_start_span[0] + dx_steps))
+            new_span_y = max(1, min(max_y, self._resize_start_span[1] + dy_steps))
             
             if new_span_x != self.span_x or new_span_y != self.span_y:
                 self.resize_requested.emit(self.slot, new_span_x, new_span_y)
@@ -1334,7 +1365,13 @@ class DashboardButton(QFrame):
         if self._drag_start_pos and event.button() == Qt.MouseButton.LeftButton:
              if self.config:
                  self.trigger_feedback() # Show feedback BEFORE emit
-             
+
+             # Sun is informational only — show feedback but no service call
+             if self.config and self.config.get('type') == 'sun':
+                 self._drag_start_pos = None
+                 super().mouseReleaseEvent(event)
+                 return
+
              # Media Player Logic
              if self.config and self.config.get('type') == 'media_player':
                  x = event.pos().x()

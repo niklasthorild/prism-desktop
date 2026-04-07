@@ -5,7 +5,9 @@ Prism Desktop brings Home Assistant to your PC with a modern, lightweight deskto
 It features a sleek dashboard with smooth animations, build in notifications, intuitive drag-and-drop customization, and deep integration with Home Assistant entities.
 
 
-<img width="831" height="657" alt="image" src="https://github.com/user-attachments/assets/88a3da63-1007-403e-b4a4-910e51049e0c" />
+<img width="833" height="660" alt="image" src="https://github.com/user-attachments/assets/bc7028cc-89db-4de3-9805-027914573a3c" />
+
+
 
 
 
@@ -30,6 +32,7 @@ It features a sleek dashboard with smooth animations, build in notifications, in
 - Lawn Mower
 - Media Controller
 - Scene
+- Sun
 - Script
 - Sensor
 - Vacuum
@@ -87,7 +90,9 @@ If you want to modify the code or run it manually:
 
 Upon first launch, you will be asked for your Home Assistant URL and a Long-Lived Access Token. You can generate this token in your Home Assistant profile settings.
 
-<img width="538" height="822" alt="image" src="https://github.com/user-attachments/assets/a2f74ca1-e71d-49ae-88b6-8bf521293882" />
+<img width="617" height="941" alt="image" src="https://github.com/user-attachments/assets/36309cb4-a316-4469-87a0-5d1ee68f22d2" />
+
+
 
 
 
