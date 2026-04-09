@@ -7,6 +7,7 @@ import asyncio
 import sys
 import time
 import platform
+import ctypes
 from PyQt6.QtWidgets import (
     QWidget, QGridLayout, QPushButton, QLabel, 
     QVBoxLayout, QHBoxLayout, QFrame, QApplication, QGraphicsDropShadowEffect, QMenu,
@@ -154,6 +155,10 @@ class Dashboard(QWidget):
         self._animation_timer = QTimer(self)
         self._animation_timer.setInterval(16) # ~60 FPS
         self._animation_timer.timeout.connect(self._on_animation_frame)
+
+        self._glass_refresh_timer = QTimer(self)
+        self._glass_refresh_timer.setInterval(33) # ~30 FPS
+        self._glass_refresh_timer.timeout.connect(self._refresh_glass_background)
         
         # SettingsWidget (created lazily to avoid circular import at module load)
         self.settings_widget = None
@@ -1375,9 +1380,12 @@ class Dashboard(QWidget):
 
         # Capture frosted glass background BEFORE showing (so we grab the clean desktop)
         if self._glass_ui:
+            # Exclude this window from OS screen grabs so live refresh doesn't capture itself
+            self._set_capture_exclusion(True)
             # Position the window first so geometry is correct for capture
             self.move(self._target_pos)
             self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
+            self._glass_refresh_timer.start()
         else:
             self.move(self._target_pos)
         
@@ -1419,10 +1427,36 @@ class Dashboard(QWidget):
         self.anim.setEndValue(0.0)
         self.anim.start()
         
+    def _set_capture_exclusion(self, exclude: bool):
+        """Exclude (or re-include) this window from OS screen captures on Windows.
+
+        Uses SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) so that grabWindow()
+        does not capture the dashboard itself — required for live frosted glass.
+        Available on Windows 10 2004+ (build 19041+).
+        """
+        if sys.platform != 'win32':
+            return
+        try:
+            WDA_NONE = 0x00000000
+            WDA_EXCLUDEFROMCAPTURE = 0x00000011
+            hwnd = int(self.winId())
+            affinity = WDA_EXCLUDEFROMCAPTURE if exclude else WDA_NONE
+            ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
+        except Exception:
+            pass
+
+    def _refresh_glass_background(self):
+        """Re-capture the desktop behind the window for live frosted glass."""
+        if self._glass_ui and self.isVisible():
+            self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
+            self.update()
+
     def _on_anim_finished(self):
         """Handle animation completion (hide if closing)."""
         # Robust check for near-zero
         if self._anim_progress < 0.01:
+            self._glass_refresh_timer.stop()
+            self._set_capture_exclusion(False)
             super().hide()
 
     def focusOutEvent(self, event):
@@ -1549,6 +1583,9 @@ class Dashboard(QWidget):
         # Update custom colors
         self._show_dimming = app.get('show_dimming', False)
         self._glass_ui = app.get('glass_ui', False)
+        if not self._glass_ui:
+            self._glass_refresh_timer.stop()
+            self._set_capture_exclusion(False)
         self._button_style = app.get('button_style', 'Gradient')
         self._temperature_unit = app.get('temperature_unit', 'celsius')
         

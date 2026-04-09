@@ -140,7 +140,8 @@ class DashboardButtonStyleManager:
                  icon_color = "rgba(255, 255, 255, 0.65)"
                  text_color = "rgba(255, 255, 255, 1.0)"
              
-             if is_gradient:
+             # QColor can't parse CSS rgba() strings, so skip gradient when dimming is active
+             if is_gradient and not str(button_color).startswith('rgba'):
                  bg_style = DashboardButtonStyleManager._get_gradient(button_color, 115)
              else:
                  bg_style = f"background-color: {button_color};"
