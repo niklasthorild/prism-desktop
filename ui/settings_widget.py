@@ -807,22 +807,24 @@ class SettingsWidget(QWidget):
             self.update_label.setCursor(Qt.CursorShape.ArrowCursor)
             commit = suffix.strip(" ()")
             self.update_label.setText(
-                f'<span style="color: #aaa; font-size: 11px;">v{APP_VERSION}'
-                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a></span>'
+                f'<a href="collapse" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
+                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a>'
             )
 
     def _on_version_label_clicked(self, href: str):
         if href == "expand":
             self._set_version_label_expanded()
+        elif href == "collapse":
+            self._set_version_label_collapsed()
         elif href == "copy":
             full = get_display_version()
             QApplication.clipboard().setText(f"v{full}")
             suffix = full[len(APP_VERSION):]
             commit = suffix.strip(" ()")
             self.update_label.setText(
-                f'<span style="color: #aaa; font-size: 11px;">v{APP_VERSION}'
+                f'<a href="collapse" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
                 f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a>'
-                f' - copied to clipboard</span>'
+                f'<span style="color: #aaa; font-size: 11px;"> - copied to clipboard</span>'
             )
             QTimer.singleShot(3000, self._set_version_label_expanded)
 
