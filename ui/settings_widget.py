@@ -786,13 +786,16 @@ class SettingsWidget(QWidget):
         self.status_label.setText(f"{icon} {message}")
         self.status_label.show()
 
+    _VERSION_STYLE = 'style="color: #aaa; font-size: 11px; text-decoration: none;"'
+    _HASH_STYLE = 'style="color: #FFC90E; font-size: 11px; text-decoration: none;"'
+
     def _set_version_label_collapsed(self):
         full = get_display_version()
         has_commit = full != APP_VERSION
         if has_commit:
             self.update_label.setCursor(Qt.CursorShape.PointingHandCursor)
             self.update_label.setText(
-                f'<a href="expand" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
+                f'<span style="color: #aaa; font-size: 11px;"><a href="expand" {self._VERSION_STYLE}>v{APP_VERSION}</a></span>'
             )
         else:
             self.update_label.setCursor(Qt.CursorShape.ArrowCursor)
@@ -804,11 +807,11 @@ class SettingsWidget(QWidget):
         full = get_display_version()
         suffix = full[len(APP_VERSION):]
         if suffix:
-            self.update_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self.update_label.setCursor(Qt.CursorShape.PointingHandCursor)
             commit = suffix.strip(" ()")
             self.update_label.setText(
-                f'<a href="collapse" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
-                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a>'
+                f'<span style="color: #aaa; font-size: 11px;"><a href="collapse" {self._VERSION_STYLE}>v{APP_VERSION}</a>'
+                f' - <a href="copy" {self._HASH_STYLE}>({commit})</a></span>'
             )
 
     def _on_version_label_clicked(self, href: str):
@@ -822,9 +825,9 @@ class SettingsWidget(QWidget):
             suffix = full[len(APP_VERSION):]
             commit = suffix.strip(" ()")
             self.update_label.setText(
-                f'<a href="collapse" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
-                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a>'
-                f'<span style="color: #aaa; font-size: 11px;"> - copied to clipboard</span>'
+                f'<span style="color: #aaa; font-size: 11px;"><a href="collapse" {self._VERSION_STYLE}>v{APP_VERSION}</a>'
+                f' <a href="copy" {self._VERSION_STYLE}>({commit})</a>'
+                f' - copied to clipboard</span>'
             )
             QTimer.singleShot(3000, self._set_version_label_expanded)
 
