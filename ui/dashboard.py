@@ -1386,7 +1386,7 @@ class Dashboard(QWidget):
             # Position the window first so geometry is correct for capture
             self.move(self._target_pos)
             self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
-            self._glass_refresh_timer.start()
+            # Timer starts in _on_anim_finished once open animation completes
         else:
             self.move(self._target_pos)
         
@@ -1456,12 +1456,14 @@ class Dashboard(QWidget):
             self.update()
 
     def _on_anim_finished(self):
-        """Handle animation completion (hide if closing)."""
-        # Robust check for near-zero
+        """Handle animation completion (hide if closing, start glass timer if opening)."""
         if self._anim_progress < 0.01:
             self._glass_refresh_timer.stop()
             self._set_capture_exclusion(False)
             super().hide()
+        elif self._glass_ui and self._anim_progress >= 0.99:
+            if not self._glass_refresh_timer.isActive():
+                self._glass_refresh_timer.start()
 
     def focusOutEvent(self, event):
         # We rely on changeEvent for robust window-level focus loss
