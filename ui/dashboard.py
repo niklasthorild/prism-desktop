@@ -2013,6 +2013,7 @@ class Dashboard(QWidget):
                 self._is_resizing_window = True
                 self._resize_mode = mode
                 self._resize_start_pos = event.globalPosition().toPoint()
+                self._glass_refresh_timer.stop()
                 self._resize_start_geo = (self.x(), self.y(), self.width(), self.height())
                 self._resize_start_rows = self._rows
                 self._resize_start_cols = self._cols
@@ -2116,6 +2117,11 @@ class Dashboard(QWidget):
             self._is_resizing_window = False
             self._resize_mode = None
             self.unsetCursor()
+
+            # Resume live glass capture after resize
+            if self._glass_ui:
+                self._refresh_glass_background()
+                self._glass_refresh_timer.start()
 
             # Prevent focus-loss close for a brief moment
             # (In case mouse release happened outside window)
