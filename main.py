@@ -64,8 +64,9 @@ from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from core.temperature_utils import normalize_temperature_unit
+from core.build_info import APP_VERSION, get_display_version
 
-VERSION = "1.4.4"
+DISPLAY_VERSION = get_display_version()
 
 def _create_task_safe(coro):
     """Schedule an async task safely from synchronous Qt context.
@@ -199,7 +200,7 @@ class PrismDesktopApp(QObject):
         """Initialize UI components."""
         rows = self.config.get('appearance', {}).get('rows', 4)
         cols = self.config.get('appearance', {}).get('cols', 6)
-        self.dashboard = Dashboard(config=self.config, theme_manager=self.theme_manager, input_manager=self.input_manager, version=VERSION, rows=rows, cols=cols)
+        self.dashboard = Dashboard(config=self.config, theme_manager=self.theme_manager, input_manager=self.input_manager, version=DISPLAY_VERSION, rows=rows, cols=cols)
         self.dashboard.set_buttons(self.config.get('buttons', []), self.config.get('appearance', {}))
         
         # Connect signals
@@ -839,7 +840,7 @@ class PrismDesktopApp(QObject):
     def check_for_updates(self):
         """Check for updates in background."""
         print("Checking for updates...")
-        self._update_thread = UpdateCheckerThread(VERSION)
+        self._update_thread = UpdateCheckerThread(APP_VERSION)
         self._update_thread.update_available.connect(self.on_update_available)
         self._update_thread.start()
 

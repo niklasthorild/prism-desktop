@@ -14,6 +14,7 @@ appimagetool*
 __pycache__/
 *.py[cod]
 *.so
+core/_generated_build_info.py
 
 # IDEs
 .vscode/
