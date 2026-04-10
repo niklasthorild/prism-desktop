@@ -1428,25 +1428,17 @@ class Dashboard(QWidget):
         self.anim.start()
         
     def _set_capture_exclusion(self, exclude: bool):
-        """Exclude (or re-include) this window from OS screen captures on Windows.
-
-        Uses SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) so that grabWindow()
-        does not capture the dashboard itself — required for live frosted glass.
-        Available on Windows 10 2004+ (build 19041+).
-        """
+        """Hide/show this window from grabWindow() so the glass capture doesn't include itself."""
         if sys.platform != 'win32':
             return
         try:
-            WDA_NONE = 0x00000000
-            WDA_EXCLUDEFROMCAPTURE = 0x00000011
             hwnd = int(self.winId())
-            affinity = WDA_EXCLUDEFROMCAPTURE if exclude else WDA_NONE
+            affinity = 0x00000011 if exclude else 0x00000000  # WDA_EXCLUDEFROMCAPTURE / WDA_NONE
             ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
         except Exception:
             pass
 
     def _refresh_glass_background(self):
-        """Re-capture the desktop behind the window for live frosted glass."""
         if self._glass_ui and self.isVisible():
             self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
             self.update()

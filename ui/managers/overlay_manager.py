@@ -61,39 +61,31 @@ class OverlayManager(QObject):
         self.vacuum_overlay.finished.connect(self.on_vacuum_finished)
         self.vacuum_overlay.morph_changed.connect(self.on_morph_changed)
 
+        # Per-overlay state: siblings faded by the overlay, and the source button it morphed from
+        self._overlay_state = {
+            overlay: {'siblings': [], 'source': None}
+            for overlay in (
+                self.dimmer_overlay, self.climate_overlay, self.printer_overlay,
+                self.weather_overlay, self.camera_overlay, self.mower_overlay, self.vacuum_overlay
+            )
+        }
+
         # State Tracking
         self._active_dimmer_entity = None
         self._active_dimmer_type = None
         self._pending_dimmer_val = None
         self._final_dimmer_val = None
-        self._dimmer_source_btn = None
-        self._dimmer_siblings = []
-        
+
         self._active_climate_entity = None
         self._pending_climate_val = None
-        self._climate_source_btn = None
-        self._climate_siblings = []
-        
+
         self._active_printer_entity = None
         self._active_printer_config = None
-        self._printer_source_btn = None
-        self._printer_siblings = []
-        
+
         self._active_weather_entity = None
-        self._weather_source_btn = None
-        self._weather_siblings = []
-        
         self._active_camera_entity = None
-        self._camera_source_btn = None
-        self._camera_siblings = []
-
         self._active_mower_entity = None
-        self._mower_source_btn = None
-        self._mower_siblings = []
-
         self._active_vacuum_entity = None
-        self._vacuum_source_btn = None
-        self._vacuum_siblings = []
 
         # Throttling Timers
         self.dimmer_timer = QTimer(self)
@@ -157,18 +149,10 @@ class OverlayManager(QObject):
         """
         if self.any_overlay_open():
             active_btn = None
-            if self.dimmer_overlay.isVisible() and not getattr(self.dimmer_overlay, '_is_closing', False):
-                active_btn = self._dimmer_source_btn
-            elif self.climate_overlay.isVisible() and not getattr(self.climate_overlay, '_is_closing', False):
-                active_btn = self._climate_source_btn
-            elif self.printer_overlay.isVisible() and not getattr(self.printer_overlay, '_is_closing', False):
-                active_btn = self._printer_source_btn
-            elif self.weather_overlay.isVisible() and not getattr(self.weather_overlay, '_is_closing', False):
-                active_btn = self._weather_source_btn
-            elif self.camera_overlay.isVisible() and not getattr(self.camera_overlay, '_is_closing', False):
-                active_btn = self._camera_source_btn
-            elif self.mower_overlay.isVisible() and not getattr(self.mower_overlay, '_is_closing', False):
-                active_btn = self._mower_source_btn
+            for overlay, state in self._overlay_state.items():
+                if overlay.isVisible() and not getattr(overlay, '_is_closing', False):
+                    active_btn = state['source']
+                    break
 
             if active_btn and active_btn.slot == slot:
                 # Toggle off the current overlay, don't reopen
@@ -438,58 +422,87 @@ class OverlayManager(QObject):
         if not self.dimmer_timer.isActive():
             self.dimmer_timer.start()
 
+    def _add_covered_siblings(self, overlay, source_btn, target_rect):
+        """Append any buttons covered by target_rect to the overlay's sibling list and fade them."""
+        state = self._overlay_state[overlay]
+        cols = getattr(self.parent_widget, '_cols', 4)
+        src_row = source_btn.slot // cols
+        rows_covered = max(
+            getattr(source_btn, 'span_y', 1),
+            (target_rect.height() + BUTTON_SPACING) // (BUTTON_HEIGHT + BUTTON_SPACING)
+        )
+        for btn in self.buttons:
+            if not btn.isVisible() or btn == source_btn: continue
+            if btn in state['siblings']: continue
+            if not self._btn_in_row_range(btn, src_row, rows_covered): continue
+            btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
+            btn_rect = QRect(btn_pos, btn.size())
+            opacity = self._fade_opacity_for_coverage(target_rect, btn_rect)
+            if opacity < 1.0:
+                state['siblings'].append(btn)
+                btn.set_opacity(opacity)
+
+    def _restore_overlay_state(self, overlay):
+        """Restore opacity for all buttons faded by an overlay, then clear its state."""
+        state = self._overlay_state[overlay]
+        for btn in state['siblings']:
+            btn.set_opacity(1.0)
+        if state['source']:
+            state['source'].set_opacity(1.0)
+        state['siblings'] = []
+        state['source'] = None
+
+    def _btn_in_row_range(self, btn, src_row: int, row_count: int) -> bool:
+        cols = getattr(self.parent_widget, '_cols', 4)
+        btn_row = btn.slot // cols
+        btn_row_end = btn_row + getattr(btn, 'span_y', 1)
+        return btn_row < src_row + row_count and btn_row_end > src_row
+
+    @staticmethod
+    def _fade_opacity_for_coverage(overlay_rect: QRect, btn_rect: QRect) -> float:
+        """Graded opacity: 0.0 if >=50% covered, 0.4 if >=15%, 1.0 otherwise."""
+        inter = overlay_rect.intersected(btn_rect)
+        if inter.isEmpty():
+            return 1.0
+        btn_area = btn_rect.width() * btn_rect.height()
+        if btn_area == 0:
+            return 1.0
+        coverage = (inter.width() * inter.height()) / btn_area
+        if coverage >= 0.5:
+            return 0.0
+        if coverage >= 0.15:
+            return 0.4
+        return 1.0
+
     def _calculate_target_rect_and_siblings(self, source_btn, slot, overlay_type='dimmer'):
-        """Shared logic to find row siblings and target rect."""
         if not source_btn: return QRect()
-        
+
         src_pos = source_btn.mapTo(self.parent_widget, QPoint(0, 0))
-        src_top = src_pos.y()
-        src_bottom = src_pos.y() + source_btn.height()
-        
-        siblings = []
+
+        # Slot-based row detection — avoids pixel-overlap false positives for span_y>1 buttons
+        cols = getattr(self.parent_widget, '_cols', 4)
+        src_row = source_btn.slot // cols
+
         row_buttons = []
-        
         for btn in self.buttons:
             if not btn.isVisible(): continue
-            btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-            btn_top = btn_pos.y()
-            btn_bottom = btn_pos.y() + btn.height()
-            
-            # Vertical overlap = same row
-            if btn_top < src_bottom and btn_bottom > src_top:
+            btn_row = btn.slot // cols
+            btn_row_end = btn_row + getattr(btn, 'span_y', 1)
+            if btn_row < src_row + 1 and btn_row_end > src_row:
+                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
                 row_buttons.append((btn, btn_pos))
-                if btn != source_btn:
-                    siblings.append(btn)
-        
-        # Store source button, but defer sibling assignment until after Rect calculation
-        if overlay_type == 'climate':
-            self._climate_source_btn = source_btn  
-            source_btn.set_opacity(0.0)
-            self._climate_siblings = []
-        elif overlay_type == 'printer':
-            self._printer_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._printer_siblings = []
-        elif overlay_type == 'weather':
-            self._weather_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._weather_siblings = []
-        elif overlay_type == 'camera':
-            self._camera_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._camera_siblings = []
-        elif overlay_type == 'mower':
-            self._mower_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._mower_siblings = []
-        elif overlay_type == 'vacuum':
-            self._vacuum_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._vacuum_siblings = []
-        else:
-            self._dimmer_source_btn = source_btn
-            source_btn.set_opacity(0.0)
-            self._dimmer_siblings = []
+
+        _overlay_map = {
+            'dimmer': self.dimmer_overlay, 'climate': self.climate_overlay,
+            'printer': self.printer_overlay, 'weather': self.weather_overlay,
+            'camera': self.camera_overlay, 'mower': self.mower_overlay,
+            'vacuum': self.vacuum_overlay,
+        }
+        _overlay = _overlay_map.get(overlay_type, self.dimmer_overlay)
+        _state = self._overlay_state[_overlay]
+        _state['source'] = source_btn
+        _state['siblings'] = []
+        source_btn.set_opacity(0.0)
             
         # Calculate Rect
         if row_buttons:
@@ -500,68 +513,41 @@ class OverlayManager(QObject):
             target_x = first_pos.x()
             target_width = (last_pos.x() + last_btn.width()) - first_pos.x()
             
-            # Enforce Max Width of 6 Columns
-            # Better to use constants: (6 * BUTTON_WIDTH) + (5 * BUTTON_SPACING)
             from ui.constants import BUTTON_WIDTH, BUTTON_SPACING
             max_6_col_width = (6 * BUTTON_WIDTH) + (5 * BUTTON_SPACING)
-            
+
             if target_width > max_6_col_width:
-                # If we need to clamp, decide alignment based on source button position
-                # Center of source button relative to the full row width
                 row_width = (last_pos.x() + last_btn.width()) - first_pos.x()
                 src_center = src_pos.x() + (source_btn.width() / 2)
                 row_center = first_pos.x() + (row_width / 2)
-                
-                # If source is in the right half, align right-to-left
                 if src_center > row_center:
-                    # Align Right: keep the right edge fixed
-                    right_edge = target_x + target_width 
+                    right_edge = target_x + target_width
                     target_width = max_6_col_width
                     target_x = right_edge - target_width
                 else:
-                     # Align Left (Default): keep left edge fixed
-                     target_width = max_6_col_width
-            
-            # Clamp width (fix for 3/4 col grid issue)
-            # This is a safety check against window bounds
+                    target_width = max_6_col_width
+
             max_w = self.parent_widget.width()
             if target_x + target_width > max_w:
                 target_width = max_w - target_x
             if target_x < 0:
                 target_x = 0
-            
-            final_rect = QRect(int(target_x), src_pos.y(), int(target_width), source_btn.height())
-            
-            # RE-FILTER SIBLINGS based on final intersection
-            # We collected row_buttons purely for geometry calculation earlier.
-            # Now we decide who gets faded.
+
+            # Single-row height — overlays that need more vertical space expand via their own loops
+            final_rect = QRect(int(target_x), src_pos.y(), int(target_width), BUTTON_HEIGHT)
+
             filtered_siblings = []
             for btn, btn_pos in row_buttons:
                 if btn == source_btn: continue
-                
-                # Create button rect relative to parent
                 btn_rect = QRect(btn_pos, btn.size())
-                
-                # If the overlay covers (intersects) this button, it should fade
-                # We use a slight margin intersection to be safe
-                if final_rect.intersects(btn_rect):
+                opacity = self._fade_opacity_for_coverage(final_rect, btn_rect)
+                if opacity < 1.0:
                     filtered_siblings.append(btn)
+                    btn.set_opacity(opacity)
                 else:
-                    # Explicitly ensure it is NOT faded if it was previously
                     btn.set_opacity(1.0)
             
-            if overlay_type == 'climate':
-                self._climate_siblings = filtered_siblings
-            elif overlay_type == 'printer':
-                self._printer_siblings = filtered_siblings
-            elif overlay_type == 'weather':
-                self._weather_siblings = filtered_siblings
-            elif overlay_type == 'camera':
-                self._camera_siblings = filtered_siblings
-            elif overlay_type == 'mower':
-                self._mower_siblings = filtered_siblings
-            else:
-                self._dimmer_siblings = filtered_siblings
+            _state['siblings'] = filtered_siblings
                 
             return final_rect
         else:
@@ -635,14 +621,7 @@ class OverlayManager(QObject):
         self._pending_dimmer_val = None
         self._final_dimmer_val = None
         
-        # Restore siblings
-        for btn in self._dimmer_siblings:
-            btn.set_opacity(1.0)
-        self._dimmer_siblings = []
-        
-        if self._dimmer_source_btn:
-            self._dimmer_source_btn.set_opacity(1.0)
-            self._dimmer_source_btn = None
+        self._restore_overlay_state(self.dimmer_overlay)
             
         self._check_pending_actions()
 
@@ -706,18 +685,7 @@ class OverlayManager(QObject):
                      diff = target_rect.bottom() - safe_bottom
                      target_rect.moveTop(target_rect.top() - diff)
 
-            # Identify additional buttons covered by the expanded/moved rect
-            for btn in self.buttons:
-                if not btn.isVisible() or btn == source_btn: continue
-                if btn in self._climate_siblings: continue
-
-                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-                btn_rect = QRect(btn_pos, btn.size())
-                
-                # Check for intersection with the new target geometry
-                if target_rect.intersects(btn_rect):
-                    self._climate_siblings.append(btn)
-                    btn.set_opacity(0.0)
+            self._add_covered_siblings(self.climate_overlay, source_btn, target_rect)
 
         
         current_state = self._entity_states.get(entity_id, {})
@@ -794,13 +762,7 @@ class OverlayManager(QObject):
         self._pending_climate_val = None
         self._active_climate_entity = None
         
-        for btn in self._climate_siblings:
-            btn.set_opacity(1.0)
-        self._climate_siblings = []
-        
-        if self._climate_source_btn:
-            self._climate_source_btn.set_opacity(1.0)
-            self._climate_source_btn = None
+        self._restore_overlay_state(self.climate_overlay)
             
         self.parent_widget.activateWindow()
         self._check_pending_actions()
@@ -810,35 +772,19 @@ class OverlayManager(QObject):
     # ==========================
     
     def on_morph_changed(self, progress: float):
-        """Update sibling opacity."""
-        opacity = 1.0 - (progress * 0.8) # Results in 0.2 final opacity
-        for btn in self._dimmer_siblings:
-            btn.set_opacity(opacity)
-        for btn in self._climate_siblings:
-            btn.set_opacity(opacity)
-        for btn in self._printer_siblings:
-            btn.set_opacity(opacity)
-        for btn in self._weather_siblings:
-            btn.set_opacity(opacity)
-        for btn in self._camera_siblings:
-            btn.set_opacity(opacity)
-        for btn in self._mower_siblings:
+        """Update sibling opacity for the overlay that fired this signal."""
+        overlay = self.sender()
+        state = self._overlay_state.get(overlay)
+        if state is None:
+            self.morph_changed.emit(progress)
+            return
+
+        opacity = 1.0 - (progress * 0.8)
+        for btn in state['siblings']:
             btn.set_opacity(opacity)
 
-        # Fade source button back in during close (overlay fades out, button fades in)
-        source_opacity = 1.0 - progress  # 0→1 as progress goes 1→0
-        if self._dimmer_source_btn and self.dimmer_overlay._is_closing:
-            self._dimmer_source_btn.set_opacity(source_opacity)
-        if self._climate_source_btn and self.climate_overlay._is_closing:
-            self._climate_source_btn.set_opacity(source_opacity)
-        if self._printer_source_btn and self.printer_overlay._is_closing:
-            self._printer_source_btn.set_opacity(source_opacity)
-        if self._weather_source_btn and self.weather_overlay._is_closing:
-            self._weather_source_btn.set_opacity(source_opacity)
-        if self._camera_source_btn and self.camera_overlay._is_closing:
-            self._camera_source_btn.set_opacity(source_opacity)
-        if self._mower_source_btn and self.mower_overlay._is_closing:
-            self._mower_source_btn.set_opacity(source_opacity)
+        if state['source'] and overlay._is_closing:
+            state['source'].set_opacity(1.0 - progress)
 
         self.morph_changed.emit(progress)
 
@@ -858,8 +804,8 @@ class OverlayManager(QObject):
         self._active_printer_config = config
         
         source_btn = next((b for b in self.buttons if b.slot == slot), None)
-        self._printer_source_btn = source_btn
-        
+        self._overlay_state[self.printer_overlay]['source'] = source_btn
+
         # Prepare initial data
         
         # Push initial camera if available on button
@@ -900,14 +846,7 @@ class OverlayManager(QObject):
                      diff = target_rect.bottom() - safe_bottom
                      target_rect.moveTop(target_rect.top() - diff)
 
-            for btn in self.buttons:
-                if not btn.isVisible() or btn == source_btn: continue
-                if btn in self._printer_siblings: continue
-                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-                btn_rect = QRect(btn_pos, btn.size())
-                if target_rect.intersects(btn_rect):
-                    self._printer_siblings.append(btn)
-                    btn.set_opacity(0.0)
+            self._add_covered_siblings(self.printer_overlay, source_btn, target_rect)
 
         # Consolidate entities into a virtual state for the printer overlay
         virtual_state = self._push_printer_state()
@@ -940,12 +879,7 @@ class OverlayManager(QObject):
     def on_printer_finished(self):
         self._active_printer_entity = None
         self._active_printer_config = None
-        for btn in self._printer_siblings:
-            btn.set_opacity(1.0)
-        self._printer_siblings = []
-        if self._printer_source_btn:
-            self._printer_source_btn.set_opacity(1.0)
-            self._printer_source_btn = None
+        self._restore_overlay_state(self.printer_overlay)
         self.parent_widget.activateWindow()
         self._check_pending_actions()
 
@@ -997,16 +931,7 @@ class OverlayManager(QObject):
                     diff = target_rect.bottom() - safe_bottom
                     target_rect.moveTop(target_rect.top() - diff)
 
-            for btn in self.buttons:
-                if not btn.isVisible() or btn == source_btn:
-                    continue
-                if btn in self._mower_siblings:
-                    continue
-                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-                btn_rect = QRect(btn_pos, btn.size())
-                if target_rect.intersects(btn_rect):
-                    self._mower_siblings.append(btn)
-                    btn.set_opacity(0.0)
+            self._add_covered_siblings(self.mower_overlay, source_btn, target_rect)
 
         current_state = self._entity_states.get(entity_id, {})
 
@@ -1027,12 +952,7 @@ class OverlayManager(QObject):
 
     def on_mower_finished(self):
         self._active_mower_entity = None
-        for btn in self._mower_siblings:
-            btn.set_opacity(1.0)
-        self._mower_siblings = []
-        if self._mower_source_btn:
-            self._mower_source_btn.set_opacity(1.0)
-            self._mower_source_btn = None
+        self._restore_overlay_state(self.mower_overlay)
         self.parent_widget.activateWindow()
         self._check_pending_actions()
 
@@ -1084,16 +1004,7 @@ class OverlayManager(QObject):
                     diff = target_rect.bottom() - safe_bottom
                     target_rect.moveTop(target_rect.top() - diff)
 
-            for btn in self.buttons:
-                if not btn.isVisible() or btn == source_btn:
-                    continue
-                if btn in self._vacuum_siblings:
-                    continue
-                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-                btn_rect = QRect(btn_pos, btn.size())
-                if target_rect.intersects(btn_rect):
-                    self._vacuum_siblings.append(btn)
-                    btn.set_opacity(0.0)
+            self._add_covered_siblings(self.vacuum_overlay, source_btn, target_rect)
 
         current_state = self._entity_states.get(entity_id, {})
 
@@ -1114,12 +1025,7 @@ class OverlayManager(QObject):
 
     def on_vacuum_finished(self):
         self._active_vacuum_entity = None
-        for btn in self._vacuum_siblings:
-            btn.set_opacity(1.0)
-        self._vacuum_siblings = []
-        if self._vacuum_source_btn:
-            self._vacuum_source_btn.set_opacity(1.0)
-            self._vacuum_source_btn = None
+        self._restore_overlay_state(self.vacuum_overlay)
         self.parent_widget.activateWindow()
         self._check_pending_actions()
 
@@ -1169,15 +1075,7 @@ class OverlayManager(QObject):
                     diff = target_rect.bottom() - safe_bottom
                     target_rect.moveTop(target_rect.top() - diff)
 
-            # Identify additional buttons covered by the expanded rect
-            for btn in self.buttons:
-                if not btn.isVisible() or btn == source_btn: continue
-                if btn in self._weather_siblings: continue
-                btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-                btn_rect = QRect(btn_pos, btn.size())
-                if target_rect.intersects(btn_rect):
-                    self._weather_siblings.append(btn)
-                    btn.set_opacity(0.0)
+            self._add_covered_siblings(self.weather_overlay, source_btn, target_rect)
 
         current_state = self._entity_states.get(entity_id, {})
         
@@ -1189,12 +1087,7 @@ class OverlayManager(QObject):
 
     def on_weather_finished(self):
         self._active_weather_entity = None
-        for btn in self._weather_siblings:
-            btn.set_opacity(1.0)
-        self._weather_siblings = []
-        if self._weather_source_btn:
-            self._weather_source_btn.set_opacity(1.0)
-            self._weather_source_btn = None
+        self._restore_overlay_state(self.weather_overlay)
         self.parent_widget.activateWindow()
         self._check_pending_actions()
 
@@ -1213,8 +1106,8 @@ class OverlayManager(QObject):
         self._active_camera_entity = entity_id
         
         source_btn = next((b for b in self.buttons if b.slot == slot), None)
-        self._camera_source_btn = source_btn
-        
+        self._overlay_state[self.camera_overlay]['source'] = source_btn
+
         if source_btn and hasattr(source_btn, '_last_camera_pixmap') and source_btn._last_camera_pixmap:
             self.camera_overlay.set_camera_pixmap(source_btn._last_camera_pixmap)
             
@@ -1277,16 +1170,7 @@ class OverlayManager(QObject):
 
         target_rect = QRect(target_x, target_y, target_w, target_h)
         
-        for btn in self.buttons:
-            if not btn.isVisible() or btn == source_btn: continue
-            if btn in self._camera_siblings: continue
-            btn_pos = btn.mapTo(self.parent_widget, QPoint(0, 0))
-            # Create a slight margin logic for intersection, or use the parent rect directly
-            btn_rect = QRect(btn_pos, btn.size())
-            # Use small margins to avoid floating point or off-by-one pixel overlaps causing unintended fade
-            if target_rect.intersects(btn_rect.adjusted(2, 2, -2, -2)):
-                self._camera_siblings.append(btn)
-                btn.set_opacity(0.0)
+        self._add_covered_siblings(self.camera_overlay, source_btn, target_rect)
                 
         self.camera_overlay.set_border_effect(self._border_effect)
         label = config.get('label', 'Camera')
@@ -1296,11 +1180,6 @@ class OverlayManager(QObject):
 
     def on_camera_finished(self):
         self._active_camera_entity = None
-        for btn in self._camera_siblings:
-            btn.set_opacity(1.0)
-        self._camera_siblings = []
-        if self._camera_source_btn:
-            self._camera_source_btn.set_opacity(1.0)
-            self._camera_source_btn = None
+        self._restore_overlay_state(self.camera_overlay)
         self.parent_widget.activateWindow()
         self._check_pending_actions()
