@@ -102,6 +102,7 @@ class Dashboard(QWidget):
         self.overlay_manager.update_buttons(self.buttons)
         self.overlay_manager.update_states(self._entity_states)
         self.overlay_manager.service_request.connect(self.button_clicked.emit)
+        self.overlay_manager.morph_changed.connect(self._on_overlay_morph)
         
         # Throttling
 
@@ -111,7 +112,7 @@ class Dashboard(QWidget):
         app_config = self.config.get('appearance', {})
         self._border_effect = app_config.get('border_effect', 'Rainbow')
         self._show_dimming = app_config.get('show_dimming', False)
-        self._glass_ui = app_config.get('glass_ui', False)
+        self._glass_ui = app_config.get('glass_ui', False) and not sys.platform.startswith('linux')
         self._button_style = app_config.get('button_style', 'Gradient')
         self._temperature_unit = app_config.get('temperature_unit', 'celsius')
         
@@ -1416,7 +1417,8 @@ class Dashboard(QWidget):
     def close_animated(self):
         """Fade out and slide toward the tray edge, then hide."""
         self.anim.stop()
-        self.border_anim.stop() # Stop the glow too
+        self.border_anim.stop()
+        self._glass_refresh_timer.stop()
         
         # Recalculate target position from current window position
         self._target_pos = QPoint(self.x(), self.y())
@@ -1437,6 +1439,16 @@ class Dashboard(QWidget):
             ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
         except Exception:
             pass
+
+    def _on_overlay_morph(self, progress: float):
+        if not self._glass_ui:
+            return
+        # Pause only during transition; resume when fully open (1.0) or fully closed (0.0)
+        if progress <= 0 or progress >= 1:
+            if not self._glass_refresh_timer.isActive():
+                self._glass_refresh_timer.start()
+        else:
+            self._glass_refresh_timer.stop()
 
     def _refresh_glass_background(self):
         if self._glass_ui and self.isVisible():
@@ -1574,7 +1586,7 @@ class Dashboard(QWidget):
         
         # Update custom colors
         self._show_dimming = app.get('show_dimming', False)
-        self._glass_ui = app.get('glass_ui', False)
+        self._glass_ui = app.get('glass_ui', False) and not sys.platform.startswith('linux')
         if self._glass_ui:
             self._set_capture_exclusion(True)
             self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)

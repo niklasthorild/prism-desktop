@@ -390,9 +390,11 @@ class SettingsWidget(QWidget):
         self.show_dimming_check.setToolTip("Fade button color based on brightness level")
         self.form.addRow("", self.show_dimming_check)
 
-        # Glass UI Option
+        # Glass UI Option (Windows only — screen capture APIs on Linux don't support exclusion)
         self.glass_ui_check = ToggleSwitch("Glass UI (EXPERIMENTAL)")
         self.glass_ui_check.setToolTip("Use a translucent glass background for the window")
+        if sys.platform.startswith('linux'):
+            self.glass_ui_check.setVisible(False)
         self.form.addRow("", self.glass_ui_check)
         
         # --- Shortcut Section ---
@@ -546,7 +548,7 @@ class SettingsWidget(QWidget):
             self.button_style_combo.setCurrentIndex(style_idx)
              
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
-        self.glass_ui_check.setChecked(app.get('glass_ui', False))
+        self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
 
         if sys.platform in ('win32', 'linux'):
             self.location_check.setChecked(
