@@ -1583,9 +1583,15 @@ class Dashboard(QWidget):
         # Update custom colors
         self._show_dimming = app.get('show_dimming', False)
         self._glass_ui = app.get('glass_ui', False)
-        if not self._glass_ui:
+        if self._glass_ui:
+            self._set_capture_exclusion(True)
+            self._glass_bg_pixmap, self._glass_capture_pos = capture_glass_background(self)
+            if not self._glass_refresh_timer.isActive():
+                self._glass_refresh_timer.start()
+        else:
             self._glass_refresh_timer.stop()
             self._set_capture_exclusion(False)
+            self._glass_bg_pixmap = None
         self._button_style = app.get('button_style', 'Gradient')
         self._temperature_unit = app.get('temperature_unit', 'celsius')
         
