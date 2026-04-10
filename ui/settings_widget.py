@@ -12,13 +12,14 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QFormLayout,
-    QGraphicsOpacityEffect, QFrame, QColorDialog
+    QGraphicsOpacityEffect, QFrame, QColorDialog, QApplication
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
 
+from core.build_info import APP_VERSION, get_display_version
 from core.worker_threads import ConnectionTestThread
 from services.update_checker import UpdateCheckerThread
 from services.location_manager import (
@@ -465,8 +466,11 @@ class SettingsWidget(QWidget):
         self.update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.update_btn.clicked.connect(self.check_for_updates)
 
-        self.update_label = QLabel(f"v{self.current_version}")
-        self.update_label.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.update_label = QLabel()
+        self.update_label.setTextFormat(Qt.TextFormat.RichText)
+        self.update_label.setOpenExternalLinks(False)
+        self.update_label.linkActivated.connect(self._on_version_label_clicked)
+        self._set_version_label_collapsed()
 
         update_row.addWidget(self.update_btn)
         update_row.addSpacing(10)
@@ -781,6 +785,47 @@ class SettingsWidget(QWidget):
         icon = "✅" if success else "❌"
         self.status_label.setText(f"{icon} {message}")
         self.status_label.show()
+
+    def _set_version_label_collapsed(self):
+        full = get_display_version()
+        has_commit = full != APP_VERSION
+        if has_commit:
+            self.update_label.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.update_label.setText(
+                f'<a href="expand" style="color: #aaa; font-size: 11px; text-decoration: none;">v{APP_VERSION}</a>'
+            )
+        else:
+            self.update_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self.update_label.setText(
+                f'<span style="color: #aaa; font-size: 11px;">v{APP_VERSION}</span>'
+            )
+
+    def _set_version_label_expanded(self):
+        full = get_display_version()
+        suffix = full[len(APP_VERSION):]
+        if suffix:
+            self.update_label.setCursor(Qt.CursorShape.ArrowCursor)
+            commit = suffix.strip(" ()")
+            self.update_label.setText(
+                f'<span style="color: #aaa; font-size: 11px;">v{APP_VERSION}'
+                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a></span>'
+            )
+
+    def _on_version_label_clicked(self, href: str):
+        if href == "expand":
+            self._set_version_label_expanded()
+        elif href == "copy":
+            full = get_display_version()
+            QApplication.clipboard().setText(f"v{full}")
+            suffix = full[len(APP_VERSION):]
+            commit = suffix.strip(" ()")
+            self.update_label.setText(
+                f'<span style="color: #aaa; font-size: 11px;">v{APP_VERSION}'
+                f' <a href="copy" style="color: #aaa; font-size: 11px; text-decoration: none;">({commit})</a>'
+                f' - copied to clipboard</span>'
+            )
+            QTimer.singleShot(3000, self._set_version_label_expanded)
+
 
     def check_for_updates(self):
         """Start update check."""
