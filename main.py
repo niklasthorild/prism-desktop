@@ -219,7 +219,8 @@ class PrismDesktopApp(QObject):
         self.dashboard.volume_scroll_requested.connect(self.on_volume_scroll)
         self.dashboard.media_command_requested.connect(self.on_media_command)
         self.dashboard.weather_forecast_requested.connect(self.on_weather_forecast_requested)
-        
+        self.dashboard.move_to_page_requested.connect(self.on_move_to_page_requested)
+
         self.dashboard._init_settings_widget(self.config, self.input_manager)
         
         self.tray_manager = TrayManager(
@@ -471,33 +472,43 @@ class PrismDesktopApp(QObject):
         else:
             print("Failed to fetch entities")
             
+    def _current_page(self) -> int:
+        """Return the active dashboard page index."""
+        return getattr(self.dashboard, '_current_page', 0)
+
     def _open_button_editor(self, slot: int):
         if not self.dashboard: return
         if not self.dashboard.isVisible(): self.dashboard.show()
-        
-        # Convert runtime slot to (row, col) for lookup
+
+        # Convert runtime slot to (row, col) for lookup, scoped to current page
         row = slot // self.dashboard._cols
         col = slot % self.dashboard._cols
-        
+        page = self._current_page()
+
         buttons = self.config.get('buttons', [])
-        existing_config = next((b for b in buttons if b.get('row') == row and b.get('col') == col), None)
+        existing_config = next(
+            (b for b in buttons if b.get('row') == row and b.get('col') == col and b.get('page', 0) == page),
+            None
+        )
         self.dashboard.show_edit_button(slot, existing_config, self._available_entities)
 
     # @pyqtSlot() - Removed to allow flexible arguments
     def on_edit_button_saved(self, slot, new_config):
         """Propagate button edit to config."""
         buttons = self.config.get('buttons', [])
-        
-        # Convert runtime slot to (row, col)
+
+        # Convert runtime slot to (row, col), scoped to current page
         row = slot // self.dashboard._cols
         col = slot % self.dashboard._cols
-        
-        # Remove old config at this (row, col)
-        buttons = [b for b in buttons if not (b.get('row') == row and b.get('col') == col)]
-        
-        # Add new with (row, col)
+        page = self._current_page()
+
+        # Remove old config at this (row, col, page)
+        buttons = [b for b in buttons if not (b.get('row') == row and b.get('col') == col and b.get('page', 0) == page)]
+
+        # Add new with (row, col, page)
         new_config['row'] = row
         new_config['col'] = col
+        new_config['page'] = page
         buttons.append(new_config)
         
         self.config['buttons'] = buttons
@@ -524,25 +535,30 @@ class PrismDesktopApp(QObject):
     @pyqtSlot(int)
     def on_duplicate_button_requested(self, slot: int):
         buttons = self.config.get('buttons', [])
-        
-        # Find source by (row, col)
+
+        # Find source by (row, col, page)
         row = slot // self.dashboard._cols
         col = slot % self.dashboard._cols
-        source_config = next((b for b in buttons if b.get('row') == row and b.get('col') == col), None)
+        page = self._current_page()
+        source_config = next(
+            (b for b in buttons if b.get('row') == row and b.get('col') == col and b.get('page', 0) == page),
+            None
+        )
         if not source_config: return
-        
+
         # Find empty slot
         span_x = source_config.get('span_x', 1)
         span_y = source_config.get('span_y', 1)
-        
-        target_row, target_col = self.dashboard.get_first_empty_slot(span_x, span_y)
+
+        target_row, target_col = self.dashboard.find_first_empty_slot_on_page(page, span_x, span_y)
         if target_row < 0:
             print("No space to duplicate")
             return
-            
+
         new_config = source_config.copy()
         new_config['row'] = target_row
         new_config['col'] = target_col
+        new_config['page'] = page
         buttons.append(new_config)
         self.config['buttons'] = buttons
         self.save_config()
@@ -571,11 +587,12 @@ class PrismDesktopApp(QObject):
         src_row, src_col = source // cols, source % cols
         tgt_row, tgt_col = target // cols, target % cols
         
-        # Find configs by (row, col)
-        source_btn = next((b for b in buttons if b.get('row') == src_row and b.get('col') == src_col), None)
+        # Find configs by (row, col, page)
+        page = self._current_page()
+        source_btn = next((b for b in buttons if b.get('row') == src_row and b.get('col') == src_col and b.get('page', 0) == page), None)
         if not source_btn: return
-        
-        target_btn = next((b for b in buttons if b.get('row') == tgt_row and b.get('col') == tgt_col), None)
+
+        target_btn = next((b for b in buttons if b.get('row') == tgt_row and b.get('col') == tgt_col and b.get('page', 0) == page), None)
         
         if target_btn:
             # Swap (row, col)
@@ -614,14 +631,73 @@ class PrismDesktopApp(QObject):
 
     @pyqtSlot(int)
     def on_clear_button_requested(self, slot):
-         buttons = self.config.get('buttons', [])
-         row = slot // self.dashboard._cols
-         col = slot % self.dashboard._cols
-         self.config['buttons'] = [b for b in buttons if not (b.get('row') == row and b.get('col') == col)]
-         self.save_config()
-         if self.dashboard:
-             self.dashboard.set_buttons(self.config['buttons'], self.config.get('appearance', {}))
+        buttons = self.config.get('buttons', [])
+        row = slot // self.dashboard._cols
+        col = slot % self.dashboard._cols
+        page = self._current_page()
+        self.config['buttons'] = [b for b in buttons if not (b.get('row') == row and b.get('col') == col and b.get('page', 0) == page)]
+        self.save_config()
+        if self.dashboard:
+            self.dashboard.set_buttons(self.config['buttons'], self.config.get('appearance', {}))
     
+    @pyqtSlot(int, int)
+    def on_move_to_page_requested(self, slot: int, target_page: int):
+        buttons = self.config.get('buttons', [])
+        row = slot // self.dashboard._cols
+        col = slot % self.dashboard._cols
+        current_page = self._current_page()
+
+        source = next(
+            (b for b in buttons if b.get('row') == row and b.get('col') == col and b.get('page', 0) == current_page),
+            None
+        )
+        if not source:
+            return
+
+        orig_sx = source.get('span_x', 1)
+        orig_sy = source.get('span_y', 1)
+
+        # Try at original span
+        tgt_row, tgt_col = self.dashboard.find_first_empty_slot_on_page(target_page, orig_sx, orig_sy)
+        final_sx, final_sy = orig_sx, orig_sy
+
+        if tgt_row < 0:
+            # Try 1×1 fallback
+            tgt_row, tgt_col = self.dashboard.find_first_empty_slot_on_page(target_page, 1, 1)
+            if tgt_row < 0:
+                QMessageBox.warning(
+                    self.dashboard,
+                    "No Room",
+                    f"Page {target_page + 1} is full. Cannot move button."
+                )
+                return
+            reply = QMessageBox.question(
+                self.dashboard,
+                "Resize to Fit",
+                f"No room at {orig_sx}\u00d7{orig_sy} on Page {target_page + 1}.\n"
+                f"Move as 1\u00d71 instead?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            final_sx, final_sy = 1, 1
+
+        # Perform the move
+        buttons = [b for b in buttons if not (
+            b.get('row') == row and b.get('col') == col and b.get('page', 0) == current_page
+        )]
+        new_config = source.copy()
+        new_config['row'] = tgt_row
+        new_config['col'] = tgt_col
+        new_config['page'] = target_page
+        new_config['span_x'] = final_sx
+        new_config['span_y'] = final_sy
+        buttons.append(new_config)
+
+        self.config['buttons'] = buttons
+        self.save_config()
+        self.dashboard.set_buttons(buttons, self.config.get('appearance', {}))
+
     @pyqtSlot(dict)
     def on_button_clicked(self, config):
         _create_task_safe(self.service_dispatcher.handle_button_click(config))
@@ -637,7 +713,8 @@ class PrismDesktopApp(QObject):
         cols = self.dashboard._cols if self.dashboard else 4
         row = slot // cols
         col = slot % cols
-        btn = next((b for b in buttons if b.get('row') == row and b.get('col') == col), None)
+        page = self._current_page()
+        btn = next((b for b in buttons if b.get('row') == row and b.get('col') == col and b.get('page', 0) == page), None)
         if btn and btn.get('entity_id'):
             _create_task_safe(self.service_dispatcher.handle_media_command(
                 btn['entity_id'], command

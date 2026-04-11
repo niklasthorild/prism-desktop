@@ -18,6 +18,7 @@ BUTTON_SPACING = 8  # Spacing between buttons
 # Footer Dimensions
 FOOTER_HEIGHT = 26
 FOOTER_MARGIN_BOTTOM = 12
+PAGE_INDICATOR_WIDTH = 72
 
 # Animation Timings
 ANIM_DURATION_ENTRANCE = 1500
@@ -40,13 +41,19 @@ def calculate_width(cols: int) -> int:
     return inner + GRID_MARGIN_LEFT + GRID_MARGIN_RIGHT + (ROOT_MARGIN * 2)
 
 
-def calculate_footer_btn_width(cols: int) -> int:
-    """Calculate footer button width for a given number of columns.
-    
-    Two footer buttons split the available grid width with one spacing gap.
-    """
+def calculate_footer_two_btn_width(cols: int) -> int:
+    """Calculate footer button width when no page indicator is shown (two buttons only)."""
     grid_inner = cols * BUTTON_WIDTH + (cols - 1) * BUTTON_SPACING
     return (grid_inner - BUTTON_SPACING) // 2
+
+
+def calculate_footer_side_btn_width(cols: int) -> int:
+    """Calculate footer side button width when a page indicator sits in the middle.
+
+    Three items: [btn_left] [indicator] [btn_settings], each separated by BUTTON_SPACING.
+    """
+    grid_inner = cols * BUTTON_WIDTH + (cols - 1) * BUTTON_SPACING
+    return (grid_inner - PAGE_INDICATOR_WIDTH - 2 * BUTTON_SPACING) // 2
 
 
 WINDOW_WIDTH = calculate_width(DEFAULT_COLS)

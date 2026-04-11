@@ -31,6 +31,7 @@ class DashboardButton(QFrame):
     edit_requested = pyqtSignal(int)
     duplicate_requested = pyqtSignal(int)
     clear_requested = pyqtSignal(int)
+    move_to_page_requested = pyqtSignal(int, int)  # slot, target_page
     dimmer_requested = pyqtSignal(int, QRect) # slot, geometry
     climate_requested = pyqtSignal(int, QRect) # slot, geometry
     weather_requested = pyqtSignal(int, QRect) # slot, geometry
@@ -52,6 +53,9 @@ class DashboardButton(QFrame):
         self.span_x = self.config.get('span_x', 1)
         self.span_y = self.config.get('span_y', 1)
         
+        self._page_count = 1
+        self._current_page = 0
+
         self.theme_manager = theme_manager
         self._show_border_effect = False
         self._show_dimming = False
@@ -1617,7 +1621,22 @@ class DashboardButton(QFrame):
             
             dup_action = menu.addAction("Duplicate")
             dup_action.triggered.connect(lambda: [print(f"DEBUG: Duplicate action triggered for slot {self.slot}"), self.duplicate_requested.emit(self.slot)])
-            
+
+            # Move to ▶
+            if self._page_count > 1:
+                move_menu = menu.addMenu("Move to \u25b6")
+                move_menu.setStyleSheet(menu.styleSheet())
+                for p in range(self._page_count):
+                    if p == self._current_page:
+                        continue
+                    action = move_menu.addAction(f"Page {p + 1}")
+                    action.triggered.connect(
+                        lambda checked, page=p: self.move_to_page_requested.emit(self.slot, page)
+                    )
+            else:
+                move_action = menu.addAction("Move to \u25b6")
+                move_action.setEnabled(False)
+
             clear_action = menu.addAction("Clear")
             clear_action.triggered.connect(lambda: self.clear_requested.emit(self.slot))
         else:

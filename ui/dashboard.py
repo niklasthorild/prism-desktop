@@ -9,9 +9,9 @@ import time
 import platform
 import ctypes
 from PyQt6.QtWidgets import (
-    QWidget, QGridLayout, QPushButton, QLabel, 
+    QWidget, QGridLayout, QPushButton, QLabel,
     QVBoxLayout, QHBoxLayout, QFrame, QApplication, QGraphicsDropShadowEffect, QMenu,
-    QGraphicsOpacityEffect, QScrollArea
+    QGraphicsOpacityEffect, QScrollArea, QSizePolicy
 )
 from PyQt6.QtCore import (
     Qt, QPoint, QPointF, pyqtSignal, QPropertyAnimation, QEasingCurve, 
@@ -30,13 +30,15 @@ from ui.icons import get_icon, get_mdi_font
 from core.utils import SYSTEM_FONT
 from ui.widgets.dashboard_button import DashboardButton, MIME_TYPE
 from ui.widgets.footer_button import FooterButton
+from ui.widgets.page_indicator_button import PageIndicatorButton
 from ui.constants import (
     WINDOW_WIDTH, DEFAULT_COLS,
     BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_SPACING, 
     GRID_MARGIN_LEFT, GRID_MARGIN_RIGHT, GRID_MARGIN_TOP, GRID_MARGIN_BOTTOM,
     FOOTER_HEIGHT, FOOTER_MARGIN_BOTTOM,
     ANIM_DURATION_ENTRANCE, ANIM_DURATION_HEIGHT, ANIM_DURATION_WIDTH, ANIM_DURATION_BORDER,
-    ROOT_MARGIN, RESIZE_MARGIN, calculate_width, calculate_footer_btn_width
+    ROOT_MARGIN, RESIZE_MARGIN, calculate_width,
+    PAGE_INDICATOR_WIDTH
 )
 from ui.managers.overlay_manager import OverlayManager
 from ui.managers.grid_manager import GridManager, VirtualButton
@@ -66,6 +68,8 @@ class Dashboard(QWidget):
     clear_button_requested = pyqtSignal(int)
     rows_changed = pyqtSignal()  # Emitted after row count changes and UI rebuilds
     cols_changed = pyqtSignal()  # Emitted after column count changes and UI rebuilds
+    page_change_requested = pyqtSignal(int)  # Emitted when user navigates to a different page
+    move_to_page_requested = pyqtSignal(int, int)  # slot, target_page
     settings_clicked = pyqtSignal()
     volume_scroll_requested = pyqtSignal(str, float)  # entity_id, new_volume (for scroll wheel)
     media_command_requested = pyqtSignal(int, str)    # slot, command
@@ -82,6 +86,9 @@ class Dashboard(QWidget):
         self.buttons: list[DashboardButton] = []
         self._button_pool: list[DashboardButton] = []  # Pool for recycled buttons
         self._button_configs: list[dict] = []
+        self._all_button_configs: list[dict] = []
+        self._current_page: int = 0
+        self._page_count: int = 1
         self._entity_states: dict = {} # Map entity_id -> full state dict
         
         # Entrance Animation
@@ -491,7 +498,22 @@ class Dashboard(QWidget):
     def get_first_empty_slot(self, span_x: int = 1, span_y: int = 1) -> tuple:
         """Find the first visible (row, col) that is completely empty and fits the span."""
         return self.grid_manager.layout_engine.find_first_empty_slot(self.buttons, self._rows, span_x, span_y)
-            
+
+    def find_first_empty_slot_on_page(self, page: int, span_x: int = 1, span_y: int = 1) -> tuple:
+        """Find first empty (row, col) on the given page. Returns (-1, -1) if no space."""
+        engine = self.grid_manager.layout_engine
+        occupied = set()
+        for cfg in self._all_button_configs:
+            if cfg.get('page', 0) != page:
+                continue
+            r = cfg.get('row', 0)
+            c = cfg.get('col', 0)
+            sx = cfg.get('span_x', 1)
+            sy = cfg.get('span_y', 1)
+            engine._mark_occupied(r, c, sx, sy, occupied)
+        r, c = engine._find_first_available(span_x, span_y, self._rows, occupied)
+        return (r, c) if r is not None else (-1, -1)
+
     def _do_set_rows(self, rows: int):
         """Update grid rows dynamically (Animate First, Rebuild Later)."""
         
@@ -545,38 +567,12 @@ class Dashboard(QWidget):
                     btn = self.buttons.pop()
                     self._recycle_button(btn)
             
-            # Re-apply all configs using (row, col) logic
-            # set_buttons calls rebuild_grid, so we must be careful.
-            # But set_buttons is general purpose. 
-            # Ideally we call set_buttons with a flag or just do it manually here.
-            # set_buttons calls rebuild_grid() -> which might restart animation.
-            
-            # Let's modify set_buttons to NOT rebuild if we do it here? 
-            # Or better: call set_buttons which calls rebuild_grid. 
-            # We need rebuild_grid to NOT start animation if called from here.
-            
-            # Actually set_buttons() calls rebuild_grid(). 
-            # If we call set_buttons below, we need to suppress its height animation.
-            # But set_buttons doesn't take args.
-            
-            # FIX: We can set a temporary flag or just call the logic directly.
-            
-            # Applying config
-            self._button_configs = self._button_configs # No change to config list
-            
-            # We need to refresh the button assignments (like set_buttons does)
-            # but without triggering another height animation.
-            
-            # Reusing set_buttons logic but manually to control rebuild_grid
-            self.set_buttons(self._button_configs, self.config.get('appearance', {}), update_height=False)
-            
+            self.set_buttons(self._all_button_configs, self.config.get('appearance', {}), update_height=False)
             self.update_style()
-            
-            # FIX: Ensure ALL buttons are fully visible after set_buttons
+
             for button in self.buttons:
                 button.set_faded(1.0)
-            
-            # Fade in only genuinely new empty (Add) buttons
+
             new_empty_indices = []
             if new_buttons:
                 for button in new_buttons:
@@ -625,8 +621,6 @@ class Dashboard(QWidget):
         button.edit_requested.connect(self.edit_button_requested)
         button.duplicate_requested.connect(self.duplicate_button_requested)
         button.clear_requested.connect(self.clear_button_requested)
-        button.duplicate_requested.connect(self.duplicate_button_requested)
-        button.clear_requested.connect(self.clear_button_requested)
         button.dimmer_requested.connect(self._on_dimmer_requested)
         button.climate_requested.connect(self._on_climate_requested)
         button.weather_requested.connect(self._on_weather_requested)
@@ -637,6 +631,7 @@ class Dashboard(QWidget):
         button.volume_requested.connect(self._on_volume_requested)
         button.media_command_requested.connect(self.media_command_requested.emit)
         button.resize_requested.connect(self.handle_button_resize)
+        button.move_to_page_requested.connect(self._forward_move_to_page)
         return button
 
     def _recycle_button(self, btn: DashboardButton):
@@ -754,27 +749,19 @@ class Dashboard(QWidget):
                 self._recycle_button(btn)
         
         # Re-apply all configs using (row, col) logic
-        self.set_buttons(self._button_configs, self.config.get('appearance', {}))
+        self.set_buttons(self._all_button_configs, self.config.get('appearance', {}))
         
-        # FIX: Ensure ALL buttons are fully visible after set_buttons
-        # set_buttons reassigns configs to button widgets sequentially,
-        # so a "new" widget (faded to 0.0) might now hold a configured entity.
-        # We must make everything visible first, then selectively fade-in empty slots.
         for button in self.buttons:
             button.set_faded(1.0)
-        
-        # Identify which slots are genuinely new empty (Add) buttons for fade-in
+
         new_empty_indices = []
         for button in new_buttons:
             if not (button.config and button.config.get('entity_id')):
-                button.set_faded(0.0)  # Pre-fade only empty new slots
+                button.set_faded(0.0)
                 new_empty_indices.append(button.slot)
-        
-        # Update footer button widths
+
         if hasattr(self, 'btn_left'):
-            btn_w = calculate_footer_btn_width(self._cols)
-            self.btn_left.setFixedWidth(btn_w)
-            self.btn_settings.setFixedWidth(btn_w)
+            self._update_footer_widths()
         
         self.update_style()
         
@@ -874,19 +861,7 @@ class Dashboard(QWidget):
         for i in range(total_slots):
             row = i // self._cols
             col = i % self._cols
-            button = DashboardButton(slot=i, theme_manager=self.theme_manager)
-            button.clicked.connect(lambda cfg, btn=button: self._on_button_clicked(btn.slot, cfg))
-            button.dropped.connect(self.on_button_dropped)
-            button.edit_requested.connect(self.edit_button_requested)
-            button.clear_requested.connect(self.clear_button_requested)
-            button.dimmer_requested.connect(self._on_dimmer_requested)
-            button.climate_requested.connect(self._on_climate_requested)
-            button.weather_requested.connect(self._on_weather_requested)
-            button.camera_requested.connect(self._on_camera_requested)
-            button.printer_requested.connect(self._on_printer_requested)
-            button.mower_requested.connect(self._on_mower_requested)
-            button.vacuum_requested.connect(self._on_vacuum_requested)
-            button.volume_requested.connect(self._on_volume_requested)
+            button = self._get_button_from_pool(i)
             button.volume_scroll.connect(self.volume_scroll_requested.emit)
             self.grid.addWidget(button, row, col)
             self.buttons.append(button)
@@ -901,20 +876,12 @@ class Dashboard(QWidget):
         footer_layout.setSpacing(BUTTON_SPACING)
         footer_layout.setContentsMargins(GRID_MARGIN_LEFT, 0, GRID_MARGIN_RIGHT, FOOTER_MARGIN_BOTTOM)
         
-        # Calc standard button width (approx)
-        # Layout: 428 total width. Container inner: 408.
-        # Grid margins: 12 left, 12 right -> 384 for buttons.
-        # 4 buttons + 3 spaces (8px) -> 384 - 24 = 360. 360/4 = 90px per button.
-        # Footer buttons: 2 buttons. Width should cover 2 grid buttons + spacing.
-        # Width = 90 + 8 + 90 = 188px.
-        # Height = 1/3 of 80px = ~26px.
-        
-        btn_width = calculate_footer_btn_width(self._cols)
         btn_height = FOOTER_HEIGHT
-        
+
         # Left Button (Home Assistant)
         self.btn_left = FooterButton("  HOME ASSISTANT") # Add space for spacing
-        self.btn_left.setFixedSize(btn_width, btn_height)
+        self.btn_left.setFixedHeight(btn_height)
+        self.btn_left.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.btn_left.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_left.clicked.connect(self.open_ha)
         
@@ -943,23 +910,29 @@ class Dashboard(QWidget):
         self.btn_left.setIconSize(QSize(15, 15)) # Slightly smaller than button height (26)
         
         self.btn_left.setStyleSheet("background: rgba(255,255,255,0.1); border: none; border-radius: 4px; color: #888;")
-        footer_layout.addWidget(self.btn_left)
-        
+        footer_layout.addWidget(self.btn_left, 1)
+
+        # Page Indicator (center)
+        self.btn_page_indicator = PageIndicatorButton(page_count=self._page_count, current_page=0)
+        self.btn_page_indicator.setStyleSheet("background: rgba(255,255,255,0.1); border: none; border-radius: 4px;")
+        self.btn_page_indicator.setVisible(self._page_count > 1)
+        self.btn_page_indicator.page_scrolled.connect(self.switch_to_page)
+        self.btn_page_indicator.page_jumped.connect(self.jump_to_page)
+        footer_layout.addWidget(self.btn_page_indicator)
+
         # Right Button (Settings) - now calls show_settings directly
         self.btn_settings = FooterButton("SETTINGS")
-        self.btn_settings.setFixedSize(btn_width, btn_height)
+        self.btn_settings.setFixedHeight(btn_height)
+        self.btn_settings.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.btn_settings.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_settings.clicked.connect(self.show_settings)
         # Style handled in update_style or inline for now
         self.btn_settings.setStyleSheet("background: rgba(255,255,255,0.1); border: none; border-radius: 4px; color: #888;")
-        footer_layout.addWidget(self.btn_settings)
+        footer_layout.addWidget(self.btn_settings, 1)
         
         content_layout.addWidget(self.footer_widget)
         
-        # FIX: Force visibility and repaint on startup/rebuild
         self.footer_widget.show()
-        self.repaint()
-        QTimer.singleShot(50, self.update)
         
         # Shadow
         shadow = QGraphicsDropShadowEffect()
@@ -1087,6 +1060,21 @@ class Dashboard(QWidget):
             self.btn_left.update()
             self.btn_settings.update()
 
+            if hasattr(self, 'btn_page_indicator'):
+                indicator_style = f"""
+                    QPushButton {{
+                        background-color: {bg};
+                        border: none;
+                        border-radius: 4px;
+                    }}
+                    QPushButton:hover {{
+                        background-color: {accent};
+                    }}
+                """
+                self.btn_page_indicator.setStyleSheet(indicator_style)
+                self.btn_page_indicator.button_style = self._button_style
+                self.btn_page_indicator.update()
+
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts."""
         
@@ -1190,7 +1178,39 @@ class Dashboard(QWidget):
     
     def set_buttons(self, configs: list[dict], appearance_config: dict = None, update_height=True):
         """Set button configurations using (row, col) based positioning."""
+        if appearance_config:
+            page_count = appearance_config.get('pages', 3)
+            self._page_count = page_count
+            if hasattr(self, 'btn_page_indicator'):
+                self.btn_page_indicator.set_page_count(page_count)
+            if self._current_page >= page_count:
+                self._current_page = 0
+                if hasattr(self, 'btn_page_indicator'):
+                    self.btn_page_indicator.set_page(0)
+            if hasattr(self, 'btn_page_indicator'):
+                self.btn_page_indicator.setVisible(page_count > 1)
+                self._update_footer_widths()
         self.grid_manager.set_buttons(configs, appearance_config=appearance_config, update_height=update_height)
+
+    def _update_footer_widths(self):
+        """No-op: footer side buttons now use stretch layout and resize automatically."""
+        pass
+
+    def _forward_move_to_page(self, slot: int, target_page: int):
+        self.move_to_page_requested.emit(slot, target_page)
+
+    def switch_to_page(self, delta: int):
+        self.jump_to_page(self._current_page + delta)
+
+    def jump_to_page(self, index: int):
+        """Switch to the given page index."""
+        new_page = max(0, min(index, self._page_count - 1))
+        if new_page == self._current_page:
+            return
+        self._current_page = new_page
+        self.btn_page_indicator.set_page(new_page)
+        self.grid_manager.set_buttons(self._all_button_configs, update_height=False)
+        self.page_change_requested.emit(new_page)
 
 
 

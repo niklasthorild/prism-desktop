@@ -385,6 +385,12 @@ class SettingsWidget(QWidget):
         
 
         
+        # Dashboard Pages
+        self.pages_combo = QComboBox()
+        self.pages_combo.addItems(["1", "2", "3", "4"])
+        self.pages_combo.setMinimumWidth(120)
+        self.form.addRow("Dashboard Pages:", self.pages_combo)
+
         # Show Dimming Option
         self.show_dimming_check = ToggleSwitch("Show dimming")
         self.show_dimming_check.setToolTip("Fade button color based on brightness level")
@@ -549,6 +555,8 @@ class SettingsWidget(QWidget):
              
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
         self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
+        pages = app.get('pages', 3)
+        self.pages_combo.setCurrentIndex(max(0, min(pages - 1, self.pages_combo.count() - 1)))
 
         if sys.platform in ('win32', 'linux'):
             self.location_check.setChecked(
@@ -584,6 +592,7 @@ class SettingsWidget(QWidget):
             'button_style': self.button_style_combo.currentText(),
             'show_dimming': self.show_dimming_check.isChecked(),
             'glass_ui': self.glass_ui_check.isChecked(),
+            'pages': self.pages_combo.currentIndex() + 1,
         })
 
         if sys.platform in ('win32', 'linux'):
