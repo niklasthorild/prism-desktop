@@ -51,7 +51,12 @@ class ConfigManager:
                             slot = btn_cfg['slot']
                             btn_cfg['row'] = slot // cols
                             btn_cfg['col'] = slot % cols
-                    
+
+                    # --- Migrate buttons without a page key to page 0 ---
+                    for btn_cfg in config.get('buttons', []):
+                        if 'page' not in btn_cfg:
+                            btn_cfg['page'] = 0
+
                     return config
             except Exception as e:
                 print(f"Error loading config: {e}")
@@ -63,6 +68,7 @@ class ConfigManager:
                 "rows": 2,
                 "button_style": "Gradient",
                 "tray_position": "bottom",
+                "pages": 1,
             },
             "shortcut": {"type": "keyboard", "value": "<ctrl>+<alt>+h"},
             "buttons": []

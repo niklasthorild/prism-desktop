@@ -106,6 +106,10 @@ class GridManager:
 
     def set_buttons(self, configs: list[dict], appearance_config: dict = None, update_height=True):
         """Set button configurations using (row, col) based positioning."""
+        self.dashboard._all_button_configs = configs
+        page = getattr(self.dashboard, '_current_page', 0)
+        configs = [c for c in configs if c.get('page', 0) == page]
+
         self.dashboard._button_configs = configs
         if appearance_config:
             self.dashboard._live_dimming = True
@@ -163,6 +167,8 @@ class GridManager:
                 button.update_content()
                 button.button_style = getattr(self.dashboard, '_button_style', 'Gradient')
                 button.set_temperature_unit_preference(getattr(self.dashboard, '_temperature_unit', 'celsius'))
+                button._page_count = getattr(self.dashboard, '_page_count', 1)
+                button._current_page = getattr(self.dashboard, '_current_page', 0)
                 button.update_style()
                 button.set_border_effect(self.dashboard._border_effect)
                 button.show_dimming = self.dashboard._show_dimming
