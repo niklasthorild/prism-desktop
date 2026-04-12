@@ -835,18 +835,18 @@ class SettingsWidget(QWidget):
     def on_update_available(self, tag):
         self.update_btn.setEnabled(True)
         self.update_label.setText(f"Update available: {tag}")
-        self.update_label.setStyleSheet("color: #34A853; font-weight: bold; font-size: 11px;")
-        
-        # Optionally change button text to "Download"
+        self.update_label.setStyleSheet("color: #FF8C00; font-weight: bold; font-size: 11px;")
+
         self.update_btn.setText("Download Update")
         self.update_btn.disconnect()
         self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")))
-        
+
     @pyqtSlot()
     def on_up_to_date(self):
         self.update_btn.setEnabled(True)
         self.update_label.setText("App is up to date")
-        self.update_label.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.update_label.setStyleSheet("color: #34A853; font-size: 11px;")
+        QTimer.singleShot(3000, self._set_version_label_collapsed)
         
     @pyqtSlot(str)
     def on_update_error(self, error):
