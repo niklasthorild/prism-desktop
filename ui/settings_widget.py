@@ -511,7 +511,12 @@ class SettingsWidget(QWidget):
         Calculate the exact height needed to show all settings without scrolling.
         Used by the Dashboard to resize the window appropriately when switching views.
         """
-        # Force layout update to get accurate size
+        # Ensure styles are applied and layout is fully recalculated before querying.
+        # On Linux, font metrics differ from defaults, so sizeHint() can underreport
+        # if the layout hasn't been activated with the actual applied styles yet.
+        self.ensurePolished()
+        if self.layout():
+            self.layout().activate()
         self.adjustSize()
         return self.sizeHint().height()
         
