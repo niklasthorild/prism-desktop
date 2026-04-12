@@ -228,18 +228,6 @@ class SettingsWidget(QWidget):
                 border-radius: {Dimensions.RADIUS_MEDIUM};
             }}
             
-            QPushButton#coffeeBtn {{
-                background-color: {colors['accent']};
-                color: white;
-                border: 1px solid {colors['accent']};
-                font-weight: {Typography.WEIGHT_MEDIUM};
-                font-size: {Typography.SIZE_BODY};
-                border-radius: {Dimensions.RADIUS_MEDIUM};
-                padding: 0px 12px;
-            }}
-            QPushButton#coffeeBtn:hover {{
-                background-color: #006ce6;
-            }}
 
             QPushButton#updateBtn {{
                 background-color: {colors['button']};
@@ -311,7 +299,7 @@ class SettingsWidget(QWidget):
         
         # 3. Form Layout (Inside Pill)
         self.form = QFormLayout()
-        self.form.setVerticalSpacing(14)
+        self.form.setVerticalSpacing(8)
         self.form.setHorizontalSpacing(16)
         
         pill_layout.addLayout(self.form)
@@ -351,13 +339,25 @@ class SettingsWidget(QWidget):
 
         # --- Appearance Section ---
         self._add_section_header("APPEARANCE")
-        
+
         # Theme
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["System", "Light", "Dark"])
         self.theme_combo.setMinimumWidth(120)
         self.theme_combo.currentIndexChanged.connect(self.on_theme_preview)
         self.form.addRow("Theme:", self.theme_combo)
+
+        from ui.widgets.effect_combobox import EffectComboBox
+        self.border_effect_combo = EffectComboBox()
+        self.border_effect_combo.addItems(["Rainbow", "Aurora Borealis", "Prism Shard", "Liquid Mercury", "None"])
+        self.border_effect_combo.setMinimumWidth(120)
+        self.border_effect_combo.currentTextChanged.connect(self.on_border_effect_changed)
+        self.form.addRow("Border Effect:", self.border_effect_combo)
+
+        self.button_style_combo = QComboBox()
+        self.button_style_combo.addItems(["Gradient", "Flat"])
+        self.button_style_combo.setMinimumWidth(120)
+        self.form.addRow("Button Style:", self.button_style_combo)
 
         self.tray_position_combo = QComboBox()
         self.tray_position_combo.addItems(["Bottom Panel", "Top Panel"])
@@ -368,40 +368,27 @@ class SettingsWidget(QWidget):
         self.temperature_unit_combo.addItems(["Celsius", "Fahrenheit"])
         self.temperature_unit_combo.setMinimumWidth(120)
         self.form.addRow("Temperature Unit:", self.temperature_unit_combo)
-        # Border Effect
-        from ui.widgets.effect_combobox import EffectComboBox
-        self.border_effect_combo = EffectComboBox()
-        self.border_effect_combo.addItems(["Rainbow", "Aurora Borealis", "Prism Shard", "Liquid Mercury", "None"])
-        self.border_effect_combo.setMinimumWidth(120)
-        # Connect change to self-update so user sees effect immediately
-        self.border_effect_combo.currentTextChanged.connect(self.on_border_effect_changed)
-        self.form.addRow("Border Effect:", self.border_effect_combo)
-        
-        # Button Style
-        self.button_style_combo = QComboBox()
-        self.button_style_combo.addItems(["Gradient", "Flat"])
-        self.button_style_combo.setMinimumWidth(120)
-        self.form.addRow("Button Style:", self.button_style_combo)
-        
 
-        
-        # Dashboard Pages
         self.pages_combo = QComboBox()
         self.pages_combo.addItems(["1", "2", "3", "4"])
         self.pages_combo.setMinimumWidth(120)
         self.form.addRow("Dashboard Pages:", self.pages_combo)
 
-        # Show Dimming Option
+        # Toggles side by side
         self.show_dimming_check = ToggleSwitch("Show dimming")
         self.show_dimming_check.setToolTip("Fade button color based on brightness level")
-        self.form.addRow("", self.show_dimming_check)
 
-        # Glass UI Option (Windows only — screen capture APIs on Linux don't support exclusion)
         self.glass_ui_check = ToggleSwitch("Glass UI (EXPERIMENTAL)")
         self.glass_ui_check.setToolTip("Use a translucent glass background for the window")
         if sys.platform.startswith('linux'):
             self.glass_ui_check.setVisible(False)
-        self.form.addRow("", self.glass_ui_check)
+
+        toggles_row = QHBoxLayout()
+        toggles_row.setSpacing(16)
+        toggles_row.addWidget(self.show_dimming_check)
+        toggles_row.addWidget(self.glass_ui_check)
+        toggles_row.addStretch()
+        self.form.addRow("", toggles_row)
         
         # --- Shortcut Section ---
         self._add_section_header("SHORTCUT")
@@ -487,16 +474,6 @@ class SettingsWidget(QWidget):
 
         self.form.addRow("Update:", update_row)
 
-        self.coffee_btn = QPushButton("Buy me a coffee ☕")
-        self.coffee_btn.setObjectName("coffeeBtn")
-        self.coffee_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.coffee_btn.clicked.connect(self.open_coffee)
-
-        coffee_row = QHBoxLayout()
-        coffee_row.addWidget(self.coffee_btn)
-        coffee_row.addStretch()
-
-        self.form.addRow("Donate:", coffee_row)
 
         layout.addStretch()
         
@@ -511,12 +488,7 @@ class SettingsWidget(QWidget):
         Calculate the exact height needed to show all settings without scrolling.
         Used by the Dashboard to resize the window appropriately when switching views.
         """
-        # Ensure styles are applied and layout is fully recalculated before querying.
-        # On Linux, font metrics differ from defaults, so sizeHint() can underreport
-        # if the layout hasn't been activated with the actual applied styles yet.
-        self.ensurePolished()
-        if self.layout():
-            self.layout().activate()
+        # Force layout update to get accurate size
         self.adjustSize()
         return self.sizeHint().height()
         
@@ -887,6 +859,3 @@ class SettingsWidget(QWidget):
             self._test_thread.quit()
             self._test_thread.wait(500)
 
-    def open_coffee(self):
-        """Open Buy Me a Coffee link."""
-        QDesktopServices.openUrl(QUrl("https://www.buymeacoffee.com/lasselian"))
