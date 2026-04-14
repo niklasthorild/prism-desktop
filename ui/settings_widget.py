@@ -383,12 +383,8 @@ class SettingsWidget(QWidget):
         if sys.platform.startswith('linux'):
             self.glass_ui_check.setVisible(False)
 
-        toggles_row = QHBoxLayout()
-        toggles_row.setSpacing(16)
-        toggles_row.addWidget(self.show_dimming_check)
-        toggles_row.addWidget(self.glass_ui_check)
-        toggles_row.addStretch()
-        self.form.addRow("", toggles_row)
+        self.form.addRow("", self.show_dimming_check)
+        self.form.addRow("", self.glass_ui_check)
         
         # --- Shortcut Section ---
         self._add_section_header("SHORTCUT")
@@ -597,18 +593,14 @@ class SettingsWidget(QWidget):
             if not available:
                 distro = get_distro_info()
                 install_cmd = get_geoclue2_install_hint(distro["id"])
-                from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.warning(
-                    self,
-                    "GeoClue2 Not Found",
-                    f"Location services require GeoClue2, which was not found "
-                    f"on your system.\n\n"
-                    f"Install it with:\n  {install_cmd}\n\n"
-                    f"Then restart Prism Desktop.",
-                )
                 # Revert toggle — location won't work without GeoClue2
                 self.location_check.setChecked(False)
                 self.config.setdefault('mobile_app', {})['location_enabled'] = False
+                dashboard = self.window()
+                if hasattr(dashboard, 'show_toast'):
+                    dashboard.show_toast(
+                        f"GeoClue2 not found. Install: {install_cmd}"
+                    )
                 return
             # GeoClue2 is available — ensure .desktop file exists
             ensure_desktop_file()

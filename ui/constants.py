@@ -56,4 +56,8 @@ def calculate_footer_side_btn_width(cols: int) -> int:
     return (grid_inner - PAGE_INDICATOR_WIDTH - 2 * BUTTON_SPACING) // 2
 
 
+# Notification Banner
+BANNER_HEIGHT = 46
+BANNER_VERTICAL_MARGIN = 8
+
 WINDOW_WIDTH = calculate_width(DEFAULT_COLS)

@@ -60,7 +60,6 @@ from services.mobile_app import register_mobile_app, send_location_update
 from services.location_manager import get_location
 from ui.icons import load_mdi_font
 from services.update_checker import UpdateCheckerThread
-from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from core.temperature_utils import normalize_temperature_unit
@@ -665,24 +664,33 @@ class PrismDesktopApp(QObject):
             # Try 1×1 fallback
             tgt_row, tgt_col = self.dashboard.find_first_empty_slot_on_page(target_page, 1, 1)
             if tgt_row < 0:
-                QMessageBox.warning(
-                    self.dashboard,
-                    "No Room",
-                    f"Page {target_page + 1} is full. Cannot move button."
-                )
+                self.dashboard.show_toast(f"Page {target_page + 1} is full. Cannot move button.")
                 return
-            reply = QMessageBox.question(
-                self.dashboard,
-                "Resize to Fit",
-                f"No room at {orig_sx}\u00d7{orig_sy} on Page {target_page + 1}.\n"
-                f"Move as 1\u00d71 instead?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-            final_sx, final_sy = 1, 1
 
-        # Perform the move
+            def _do_move_as_1x1():
+                # Re-read config to avoid stale state
+                btns = self.config.get('buttons', [])
+                btns = [b for b in btns if not (
+                    b.get('row') == row and b.get('col') == col and b.get('page', 0) == current_page
+                )]
+                new_cfg = source.copy()
+                new_cfg['row'] = tgt_row
+                new_cfg['col'] = tgt_col
+                new_cfg['page'] = target_page
+                new_cfg['span_x'] = 1
+                new_cfg['span_y'] = 1
+                btns.append(new_cfg)
+                self.config['buttons'] = btns
+                self.save_config()
+                self.dashboard.set_buttons(btns, self.config.get('appearance', {}))
+
+            self.dashboard.show_confirm(
+                f"No room at {orig_sx}\u00d7{orig_sy} on Page {target_page + 1}. Move as 1\u00d71?",
+                on_confirm=_do_move_as_1x1
+            )
+            return
+
+        # Perform the move (original span fits)
         buttons = [b for b in buttons if not (
             b.get('row') == row and b.get('col') == col and b.get('page', 0) == current_page
         )]
@@ -925,21 +933,12 @@ class PrismDesktopApp(QObject):
     def on_update_available(self, new_version):
         """Handle update available."""
         print(f"Update available: {new_version}")
-        
-        # Create message box
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setWindowTitle("Update Available")
-        msg.setText(f"A new version of Prism Desktop is available ({new_version}).")
-        msg.setInformativeText("Would you like to download it now?")
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-        
-        # Show (blocking, but we are in main thread so it's fine for a modal)
-        ret = msg.exec()
-        
-        if ret == QMessageBox.StandardButton.Yes:
-            QDesktopServices.openUrl(QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest"))
+        self.dashboard.show_confirm(
+            f"Prism Desktop {new_version} is available. Download now?",
+            on_confirm=lambda: QDesktopServices.openUrl(
+                QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")
+            )
+        )
 
 
 if __name__ == '__main__':

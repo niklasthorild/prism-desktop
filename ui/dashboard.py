@@ -38,8 +38,10 @@ from ui.constants import (
     FOOTER_HEIGHT, FOOTER_MARGIN_BOTTOM,
     ANIM_DURATION_ENTRANCE, ANIM_DURATION_HEIGHT, ANIM_DURATION_WIDTH, ANIM_DURATION_BORDER,
     ROOT_MARGIN, RESIZE_MARGIN, calculate_width,
-    PAGE_INDICATOR_WIDTH
+    PAGE_INDICATOR_WIDTH,
+    BANNER_HEIGHT, BANNER_VERTICAL_MARGIN
 )
+from ui.widgets.notification_banner import NotificationBanner
 from ui.managers.overlay_manager import OverlayManager
 from ui.managers.grid_manager import GridManager, VirtualButton
 from ui.settings_widget import SettingsWidget
@@ -88,6 +90,7 @@ class Dashboard(QWidget):
         self._button_configs: list[dict] = []
         self._all_button_configs: list[dict] = []
         self._current_page: int = 0
+        self._active_banner: NotificationBanner | None = None
         self._page_count: int = 1
         self._entity_states: dict = {} # Map entity_id -> full state dict
         
@@ -347,6 +350,83 @@ class Dashboard(QWidget):
         """Whether the dashboard should stay pinned to the top edge."""
         return self._get_tray_position() == 'top'
 
+    def _calculate_target_height(self, rows: int = None) -> int:
+        """Calculate total window height for a given row count."""
+        if rows is None:
+            rows = self._rows
+        grid_h = (rows * BUTTON_HEIGHT) + ((rows - 1) * BUTTON_SPACING)
+        extras = GRID_MARGIN_TOP + GRID_MARGIN_BOTTOM + FOOTER_HEIGHT + FOOTER_MARGIN_BOTTOM + (2 * ROOT_MARGIN)
+        return grid_h + extras
+
+    # ── Notification Banner API ─────────────────────────────────────────
+
+    def show_toast(self, message: str, duration_ms: int = 7000):
+        """Show an auto-dismissing floating notification banner."""
+        # Don't override an active confirm banner
+        if self._active_banner and self._active_banner.banner_type == "confirm":
+            return
+        self._dismiss_banner_immediate()
+        self._show_banner(message, "toast", auto_dismiss_ms=duration_ms)
+
+    def show_confirm(self, message: str, on_confirm=None, on_reject=None):
+        """Show a floating confirmation banner with Yes/No buttons."""
+        self._dismiss_banner_immediate()
+        banner = self._show_banner(message, "confirm")
+        if on_confirm:
+            banner.confirmed.connect(on_confirm)
+        if on_reject:
+            banner.rejected.connect(on_reject)
+
+    def _show_banner(self, message: str, banner_type: str, auto_dismiss_ms: int = 4000):
+        """Create and show a floating notification banner outside the dashboard."""
+        text_color = "#ffffff"
+        if self.theme_manager:
+            text_color = self.theme_manager.get_colors().get('text', '#ffffff')
+        banner = NotificationBanner(message, banner_type, auto_dismiss_ms,
+                                    button_style=self._button_style,
+                                    border_effect=self._border_effect,
+                                    text_color=text_color)
+        banner.dismissed.connect(self._dismiss_banner)
+        banner.confirmed.connect(self._dismiss_banner)
+        banner.rejected.connect(self._dismiss_banner)
+        self._active_banner = banner
+
+        x, y, slide_from_y = self._get_banner_geometry()
+        banner.show_at(x, y, self.width(), slide_from_y)
+        return banner
+
+    def _get_banner_geometry(self):
+        """Calculate x, y, and slide_from_y for the floating banner."""
+        from ui.widgets.notification_banner import GAP
+        banner_h = BANNER_HEIGHT + BANNER_VERTICAL_MARGIN * 2
+        if self._is_top_anchored():
+            # Banner below the visible container (strip ROOT_MARGIN from bottom edge)
+            y = self.y() + self.height() - ROOT_MARGIN + GAP - BANNER_VERTICAL_MARGIN
+            slide_from_y = y - 8
+        else:
+            # Banner above the visible container (strip ROOT_MARGIN from top edge)
+            y = self.y() + ROOT_MARGIN - banner_h - GAP + BANNER_VERTICAL_MARGIN
+            slide_from_y = y + 8
+        return self.x(), y, slide_from_y
+
+    def _dismiss_banner(self):
+        """Close and delete the active floating banner."""
+        if not self._active_banner:
+            return
+        banner = self._active_banner
+        self._active_banner = None
+        banner.hide()
+        banner.deleteLater()
+
+    def _dismiss_banner_immediate(self):
+        """Close active banner without animation (for replacement)."""
+        if not self._active_banner:
+            return
+        banner = self._active_banner
+        self._active_banner = None
+        banner.hide()
+        banner.deleteLater()
+
     def refresh_tray_anchor(self, move_now: bool = False, tray_geometry: QRect | None = None):
         """Refresh cached tray geometry after config changes."""
         screen = self._screen_for_tray_geometry(tray_geometry)
@@ -518,10 +598,7 @@ class Dashboard(QWidget):
         """Update grid rows dynamically (Animate First, Rebuild Later)."""
         
         # Calculate target height for the NEW row count
-        # grid_h calculation moved here (Phase 1)
-        grid_h = (rows * BUTTON_HEIGHT) + ((rows - 1) * BUTTON_SPACING)
-        extras = GRID_MARGIN_TOP + GRID_MARGIN_BOTTOM + FOOTER_HEIGHT + FOOTER_MARGIN_BOTTOM + (2 * ROOT_MARGIN)
-        target_h = grid_h + extras
+        target_h = self._calculate_target_height(rows)
         
         # Store pending update
         self._pending_rows_update = rows
@@ -586,9 +663,7 @@ class Dashboard(QWidget):
             self._pending_rows_update = None
             
             # Lock size to new calculated height
-            grid_h = (self._rows * BUTTON_HEIGHT) + ((self._rows - 1) * BUTTON_SPACING)
-            extras = GRID_MARGIN_TOP + GRID_MARGIN_BOTTOM + FOOTER_HEIGHT + FOOTER_MARGIN_BOTTOM + (2 * ROOT_MARGIN)
-            self.setFixedSize(self._fixed_width, int(grid_h + extras))
+            self.setFixedSize(self._fixed_width, self._calculate_target_height())
             
             if self._current_view == 'grid':
                 self._fade_in_footer()
@@ -780,9 +855,7 @@ class Dashboard(QWidget):
         self.save_config_requested.emit()
         
         # Store grid height
-        grid_h = (self._rows * BUTTON_HEIGHT) + ((self._rows - 1) * BUTTON_SPACING)
-        extras = GRID_MARGIN_TOP + GRID_MARGIN_BOTTOM + FOOTER_HEIGHT + FOOTER_MARGIN_BOTTOM + 20
-        self._grid_height = grid_h + extras
+        self._grid_height = self._calculate_target_height()
         # Lock only at the VERY end
         if self.height_anim.state() != QPropertyAnimation.State.Running:
              self.setFixedSize(self.width(), self.height())
@@ -828,14 +901,17 @@ class Dashboard(QWidget):
         root_layout.addWidget(self.container)
         
         # Container Layout (Stack + Footer)
-        content_layout = QVBoxLayout(self.container)
-        content_layout.setSpacing(0)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout = QVBoxLayout(self.container)
+        self.content_layout.setSpacing(0)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Clear any active banner reference (setup_ui may be called multiple times)
+        self._active_banner = None
         
         # Stacked Widget for switching views (Grid / Settings)
         from PyQt6.QtWidgets import QStackedWidget
         self.stack_widget = QStackedWidget()
-        content_layout.addWidget(self.stack_widget)
+        self.content_layout.addWidget(self.stack_widget)
         
         # 1. Main Grid
         self.grid_widget = QWidget()
@@ -930,7 +1006,7 @@ class Dashboard(QWidget):
         self.btn_settings.setStyleSheet("background: rgba(255,255,255,0.1); border: none; border-radius: 4px; color: #888;")
         footer_layout.addWidget(self.btn_settings, 1)
         
-        content_layout.addWidget(self.footer_widget)
+        self.content_layout.addWidget(self.footer_widget)
         
         self.footer_widget.show()
         
@@ -947,12 +1023,7 @@ class Dashboard(QWidget):
         
         # Size Calculation
         width = calculate_width(self._cols)
-        # Height: Grid rows*80 + (rows-1)*8 + Grid top(12) + Grid bot(8) + Footer(26) + Footer bot(12) + Root margins(20)
-        # = (rows*80) + (rows-1)*8 + 12 + 8 + 26 + 12 + 20
-        # = (rows*80) + (rows*8) - 8 + 78
-        grid_h = (self._rows * BUTTON_HEIGHT) + ((self._rows - 1) * BUTTON_SPACING)
-        extras = GRID_MARGIN_TOP + GRID_MARGIN_BOTTOM + FOOTER_HEIGHT + FOOTER_MARGIN_BOTTOM + 20   # 78
-        height = grid_h + extras
+        height = self._calculate_target_height()
         self.setFixedSize(width, height)
     def open_ha(self):
         """Open Home Assistant in default browser."""
@@ -1436,6 +1507,7 @@ class Dashboard(QWidget):
     
     def close_animated(self):
         """Fade out and slide toward the tray edge, then hide."""
+        self._dismiss_banner_immediate()
         self.anim.stop()
         self.border_anim.stop()
         self._glass_refresh_timer.stop()
@@ -1853,6 +1925,7 @@ class Dashboard(QWidget):
 
     def show_settings(self):
         """Morph from Grid view to Settings view."""
+        self._dismiss_banner_immediate()
         if self.overlay_manager:
             self.overlay_manager.close_all_overlays()
         # Expand to at least 6 columns wide when entering settings

@@ -9,110 +9,110 @@ from PyQt6.QtGui import (
 from PyQt6.QtCore import Qt, QRectF, QPoint
 from PyQt6.QtWidgets import QApplication
 
-def draw_aurora_border(painter: QPainter, rect: QRectF, progress: float):
+def draw_aurora_border(painter: QPainter, rect: QRectF, progress: float, width: float = 3):
     """Draw the Aurora Borealis border effect."""
     if not painter.isActive():
         painter.begin(painter.device())
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    
-    angle = progress * 360.0 * 1.0 
-    
+
+    angle = progress * 360.0 * 1.0
+
     opacity = 1.0
     if progress > 0.8:
         opacity = (1.0 - progress) / 0.2
     painter.setOpacity(opacity)
-    
+
     colors = ["#00C896", "#0078FF", "#8C00FF", "#0078FF", "#00C896"]
-    
+
     gradient = QConicalGradient(rect.center(), angle)
     for i, color in enumerate(colors):
         gradient.setColorAt(i / (len(colors) - 1), QColor(color))
-    
+
     pen = QPen()
-    pen.setWidth(3)
+    pen.setWidthF(width)
     pen.setBrush(QBrush(gradient))
-    
+
     painter.setPen(pen)
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawRoundedRect(rect, 12, 12)
 
-def draw_rainbow_border(painter: QPainter, rect: QRectF, progress: float):
+def draw_rainbow_border(painter: QPainter, rect: QRectF, progress: float, width: float = 3):
     """Draw the rainbow border effect."""
     if not painter.isActive():
         painter.begin(painter.device())
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    
+
     angle = progress * 360.0 * 1.5
-    
+
     opacity = 1.0
     if progress > 0.8:
         opacity = (1.0 - progress) / 0.2
     painter.setOpacity(opacity)
-    
+
     colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#4285F4"]
-    
+
     gradient = QConicalGradient(rect.center(), angle)
     for i, color in enumerate(colors):
         gradient.setColorAt(i / (len(colors) - 1), QColor(color))
-    
+
     pen = QPen()
-    pen.setWidth(3)
+    pen.setWidthF(width)
     pen.setBrush(QBrush(gradient))
-    
+
     painter.setPen(pen)
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawRoundedRect(rect, 12, 12)
 
-def draw_prism_shard_border(painter: QPainter, rect: QRectF, progress: float):
+def draw_prism_shard_border(painter: QPainter, rect: QRectF, progress: float, width: float = 3):
     """Draw the Prism Shard border effect."""
     if not painter.isActive():
         painter.begin(painter.device())
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    
+
     angle = progress * 360.0 * 0.9
-    
+
     opacity = 1.0
     if progress > 0.8:
         opacity = (1.0 - progress) / 0.2
     painter.setOpacity(opacity)
-    
+
     colors = ["#26C6DA", "#EC407A", "#FFCA28", "#CFD8DC", "#26C6DA"]
-    
+
     gradient = QConicalGradient(rect.center(), angle)
     for i, color in enumerate(colors):
         gradient.setColorAt(i / (len(colors) - 1), QColor(color))
-    
+
     pen = QPen()
-    pen.setWidth(3)
+    pen.setWidthF(width)
     pen.setBrush(QBrush(gradient))
-    
+
     painter.setPen(pen)
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawRoundedRect(rect, 12, 12)
 
-def draw_liquid_mercury_border(painter: QPainter, rect: QRectF, progress: float):
+def draw_liquid_mercury_border(painter: QPainter, rect: QRectF, progress: float, width: float = 3):
     """Draw the Liquid Mercury border effect."""
     if not painter.isActive():
         painter.begin(painter.device())
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    
+
     angle = progress * 360.0 * 1.2
-    
+
     opacity = 1.0
     if progress > 0.8:
         opacity = (1.0 - progress) / 0.2
     painter.setOpacity(opacity)
-    
+
     colors = ["#37474F", "#78909C", "#CFD8DC", "#ECEFF1", "#CFD8DC", "#78909C", "#37474F"]
-    
+
     gradient = QConicalGradient(rect.center(), angle)
     for i, color in enumerate(colors):
         gradient.setColorAt(i / (len(colors) - 1), QColor(color))
-    
+
     pen = QPen()
-    pen.setWidth(3)
+    pen.setWidthF(width)
     pen.setBrush(QBrush(gradient))
-    
+
     painter.setPen(pen)
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawRoundedRect(rect, 12, 12)
