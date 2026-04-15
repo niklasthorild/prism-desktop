@@ -50,7 +50,6 @@ class NotificationBanner(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
 
-        self.setMinimumHeight(BANNER_HEIGHT + BANNER_VERTICAL_MARGIN * 2)
         self._hovered = False  # once hovered, disable auto-dismiss
 
         # Auto-dismiss timer (stoppable)
@@ -161,22 +160,73 @@ class NotificationBanner(QWidget):
             self.btn_close.clicked.connect(self._on_dismiss)
             layout.addWidget(self.btn_close)
 
-    def show_at(self, x: int, y: int, width: int, slide_from_y: int):
-        """Position and show the banner with a slide+fade animation."""
+    def _compute_content_height(self, width: int) -> int:
+        """Explicitly compute the banner's pixel height from its content.
+
+        Qt's layout engine gives wrong results for a word-wrapped QLabel
+        inside a QHBoxLayout — sizeHint() reflects single-line text and
+        doesn't integrate with heightForWidth() for layout purposes.  So
+        we compute the height ourselves using the label's heightForWidth()
+        (which *is* reliable) and the known button dimensions.
+        """
+        btn_h = int((BANNER_HEIGHT - 8) * 0.75)
+        h_margin = (GRID_MARGIN_LEFT + ROOT_MARGIN) + (GRID_MARGIN_RIGHT + ROOT_MARGIN)
+        spacing = 8  # QHBoxLayout spacing
+
+        if self.banner_type == "confirm":
+            # Make sure stylesheet-derived sizeHints are current.
+            self.btn_yes.ensurePolished()
+            self.btn_no.ensurePolished()
+            yes_w = max(self.btn_yes.sizeHint().width(), self.btn_yes.minimumWidth())
+            no_w = max(self.btn_no.sizeHint().width(), self.btn_no.minimumWidth())
+            # label + spacing + yes + spacing + no
+            button_block = yes_w + spacing + no_w + spacing
+        else:
+            # label + spacing + close button (fixed btn_h × btn_h)
+            button_block = btn_h + spacing
+
+        label_width = max(50, width - h_margin - button_block)
+
+        # heightForWidth returns the wrapped pixel height for this width.
+        self.label.ensurePolished()
+        label_h = self.label.heightForWidth(label_width)
+        if label_h <= 0:
+            label_h = self.label.fontMetrics().height()
+
+        content_h = max(label_h, btn_h)
+        return content_h + BANNER_VERTICAL_MARGIN * 2
+
+    def show_at(self, x: int, width: int, container_edge_y: int, above: bool):
+        """Position and show the banner with a slide+fade animation.
+
+        The banner's height is computed explicitly from its content rather
+        than read from Qt's layout (which is unreliable with word-wrapped
+        labels in horizontal layouts).
+        """
+        self.ensurePolished()
         self.setFixedWidth(width)
+
+        banner_h = self._compute_content_height(width)
+        self.setFixedHeight(banner_h)
+
+        if above:
+            y = container_edge_y - banner_h - GAP
+            slide_from_y = y + 8
+        else:
+            y = container_edge_y + GAP
+            slide_from_y = y - 8
+
         self._target_y = y
 
-        # Start just off-target (slide direction)
+        # Position invisible at slide-start, then animate in.
         self.move(x, slide_from_y)
         self.setWindowOpacity(0.0)
         self.show()
 
-        # Animate position
         self._pos_anim.setStartValue(QPoint(x, slide_from_y))
         self._pos_anim.setEndValue(QPoint(x, y))
         self._pos_anim.start()
 
-        # Animate opacity
         self._slide_anim.setStartValue(0.0)
         self._slide_anim.setEndValue(1.0)
         self._slide_anim.start()
@@ -218,8 +268,8 @@ class NotificationBanner(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         rect = QRectF(self.rect()).adjusted(
-            ROOT_MARGIN, BANNER_VERTICAL_MARGIN,
-            -ROOT_MARGIN, -BANNER_VERTICAL_MARGIN,
+            ROOT_MARGIN, 2,
+            -ROOT_MARGIN, -2,
         )
 
         # Solid dark background — match dashboard container style

@@ -58,6 +58,6 @@ def calculate_footer_side_btn_width(cols: int) -> int:
 
 # Notification Banner
 BANNER_HEIGHT = 46
-BANNER_VERTICAL_MARGIN = 8
+BANNER_VERTICAL_MARGIN = 12
 
 WINDOW_WIDTH = calculate_width(DEFAULT_COLS)

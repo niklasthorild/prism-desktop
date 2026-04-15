@@ -316,18 +316,10 @@ class SettingsWidget(QWidget):
         self.token_input.setPlaceholderText("Long-Lived Access Token")
         self.form.addRow("Token:", self.token_input)
 
-        # Full-width Test Connection button + status + optional location toggle
-        connect_col = QVBoxLayout()
-        connect_col.setSpacing(6)
+        # Full-width Test Connection button
         self.test_btn = QPushButton("Test Connection")
         self.test_btn.clicked.connect(self.test_connection)
-        self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setStyleSheet("color: #aaa; font-size: 11px;")
-        self.status_label.hide()
-        connect_col.addWidget(self.test_btn)
-        connect_col.addWidget(self.status_label)
-        self.form.addRow("", connect_col)
+        self.form.addRow("", self.test_btn)
 
         # Location tracking (Windows + Linux)
         if sys.platform in ('win32', 'linux'):
@@ -741,19 +733,16 @@ class SettingsWidget(QWidget):
     def test_connection(self):
         url = self.url_input.text().strip()
         token = self.token_input.text().strip()
-        
+
         if not url or not token:
-            self.status_label.setText("⚠ Missing Info")
-            self.status_label.show()
+            self.window().show_toast("Missing URL or token — fill in both fields first.")
             return
-            
+
         self.test_btn.setEnabled(False)
-        self.status_label.setText("Testing...")
-        self.status_label.show()
-        
+
         if self._test_thread and self._test_thread.isRunning():
             self._test_thread.quit()
-        
+
         # Run connection check in background to avoid freezing UI
         self._test_thread = ConnectionTestThread(url, token)
         self._test_thread.finished.connect(self.on_test_complete)
@@ -763,8 +752,7 @@ class SettingsWidget(QWidget):
     def on_test_complete(self, success, message):
         self.test_btn.setEnabled(True)
         icon = "✅" if success else "❌"
-        self.status_label.setText(f"{icon} {message}")
-        self.status_label.show()
+        self.window().show_toast(f"{icon} {message}")
 
     _VERSION_STYLE = 'style="color: #aaa; font-size: 11px; text-decoration: none;"'
     _HASH_STYLE = 'style="color: #FFC90E; font-size: 11px; text-decoration: none;"'

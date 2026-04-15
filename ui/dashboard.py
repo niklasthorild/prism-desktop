@@ -39,7 +39,6 @@ from ui.constants import (
     ANIM_DURATION_ENTRANCE, ANIM_DURATION_HEIGHT, ANIM_DURATION_WIDTH, ANIM_DURATION_BORDER,
     ROOT_MARGIN, RESIZE_MARGIN, calculate_width,
     PAGE_INDICATOR_WIDTH,
-    BANNER_HEIGHT, BANNER_VERTICAL_MARGIN
 )
 from ui.widgets.notification_banner import NotificationBanner
 from ui.managers.overlay_manager import OverlayManager
@@ -379,6 +378,8 @@ class Dashboard(QWidget):
 
     def _show_banner(self, message: str, banner_type: str, auto_dismiss_ms: int = 4000):
         """Create and show a floating notification banner outside the dashboard."""
+        if self.overlay_manager:
+            self.overlay_manager.close_all_overlays()
         text_color = "#ffffff"
         if self.theme_manager:
             text_color = self.theme_manager.get_colors().get('text', '#ffffff')
@@ -391,23 +392,14 @@ class Dashboard(QWidget):
         banner.rejected.connect(self._dismiss_banner)
         self._active_banner = banner
 
-        x, y, slide_from_y = self._get_banner_geometry()
-        banner.show_at(x, y, self.width(), slide_from_y)
-        return banner
-
-    def _get_banner_geometry(self):
-        """Calculate x, y, and slide_from_y for the floating banner."""
-        from ui.widgets.notification_banner import GAP
-        banner_h = BANNER_HEIGHT + BANNER_VERTICAL_MARGIN * 2
-        if self._is_top_anchored():
-            # Banner below the visible container (strip ROOT_MARGIN from bottom edge)
-            y = self.y() + self.height() - ROOT_MARGIN + GAP - BANNER_VERTICAL_MARGIN
-            slide_from_y = y - 8
+        above = not self._is_top_anchored()
+        if above:
+            container_edge = self.y() + ROOT_MARGIN          # top of visible container
         else:
-            # Banner above the visible container (strip ROOT_MARGIN from top edge)
-            y = self.y() + ROOT_MARGIN - banner_h - GAP + BANNER_VERTICAL_MARGIN
-            slide_from_y = y + 8
-        return self.x(), y, slide_from_y
+            container_edge = self.y() + self.height() - ROOT_MARGIN  # bottom of visible container
+
+        banner.show_at(self.x(), self.width(), container_edge, above)
+        return banner
 
     def _dismiss_banner(self):
         """Close and delete the active floating banner."""
