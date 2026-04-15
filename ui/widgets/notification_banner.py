@@ -4,7 +4,6 @@ A standalone floating window that appears above/below the dashboard.
 Supports toast (auto-dismiss) and confirm (Yes/No) modes.
 """
 
-import sys
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, pyqtProperty, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QColor, QFont
@@ -103,7 +102,7 @@ class NotificationBanner(QWidget):
         )
 
         if banner_type == "confirm":
-            btn_h = BANNER_HEIGHT - 8
+            btn_h = int((BANNER_HEIGHT - 8) * 0.75)
             use_gradient = button_style == "Gradient"
 
             if use_gradient:
@@ -123,13 +122,13 @@ class NotificationBanner(QWidget):
 
             yes_style = (
                 f"QPushButton {{ background: {yes_bg}; border: none; border-radius: 6px;"
-                f"  color: #fff; padding: 4px 20px;"
+                f"  color: #fff; padding: 2px 14px;"
                 f"  font-family: '{SYSTEM_FONT}'; font-size: 11px; font-weight: 500; }}"
                 f"QPushButton:hover {{ background: {yes_bg_hover}; }}"
             )
             self.btn_yes = QPushButton("Yes")
             self.btn_yes.setFixedHeight(btn_h)
-            self.btn_yes.setMinimumWidth(72)
+            self.btn_yes.setMinimumWidth(54)
             self.btn_yes.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_yes.setStyleSheet(yes_style)
             self.btn_yes.clicked.connect(self._on_confirm)
@@ -137,23 +136,28 @@ class NotificationBanner(QWidget):
 
             no_style = (
                 f"QPushButton {{ background: {no_bg}; border: none; border-radius: 6px;"
-                f"  color: #fff; padding: 4px 20px;"
+                f"  color: #fff; padding: 2px 14px;"
                 f"  font-family: '{SYSTEM_FONT}'; font-size: 11px; font-weight: 500; }}"
                 f"QPushButton:hover {{ background: {no_bg_hover}; }}"
             )
             self.btn_no = QPushButton("No")
             self.btn_no.setFixedHeight(btn_h)
-            self.btn_no.setMinimumWidth(72)
+            self.btn_no.setMinimumWidth(54)
             self.btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_no.setStyleSheet(no_style)
             self.btn_no.clicked.connect(self._on_reject)
             layout.addWidget(self.btn_no)
         else:
-            btn_h = BANNER_HEIGHT - 8
+            btn_h = int((BANNER_HEIGHT - 8) * 0.75)
+            close_style = (
+                f"QPushButton {{ background: rgb(175,55,55); border: none; border-radius: 4px;"
+                f"  color: #fff; font-family: '{SYSTEM_FONT}'; font-size: 10px; }}"
+                f"QPushButton:hover {{ background: rgb(205,65,65); }}"
+            )
             self.btn_close = QPushButton("\u2715")
             self.btn_close.setFixedSize(btn_h, btn_h)
             self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.btn_close.setStyleSheet(btn_style)
+            self.btn_close.setStyleSheet(close_style)
             self.btn_close.clicked.connect(self._on_dismiss)
             layout.addWidget(self.btn_close)
 

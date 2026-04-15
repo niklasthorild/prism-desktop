@@ -2115,6 +2115,7 @@ class Dashboard(QWidget):
                 mode = 'left'
 
             if mode:
+                self._dismiss_banner_immediate()
                 self._is_resizing_window = True
                 self._resize_mode = mode
                 self._resize_start_pos = event.globalPosition().toPoint()
