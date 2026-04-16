@@ -67,11 +67,13 @@ class ConfigManager:
                 "theme": "system",
                 "rows": 2,
                 "button_style": "Gradient",
+                "border_effect": "Liquid Mercury",
                 "tray_position": "bottom",
                 "pages": 1,
             },
             "shortcut": {"type": "keyboard", "value": "<ctrl>+<alt>+h"},
-            "buttons": []
+            "buttons": [],
+            "welcome_shown": False,
         }
 
     def save_raw_config(self, config_to_save: dict):

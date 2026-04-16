@@ -33,6 +33,7 @@ logging.basicConfig(
 
 VERSION = "1.4.3"
 TOGGLE_ARG = "--toggle"
+WELCOME_ARG = "--welcome"
 
 if __name__ == '__main__' and TOGGLE_ARG in sys.argv[1:]:
     if send_local_command("toggle"):
@@ -144,10 +145,69 @@ class PrismDesktopApp(QObject):
         # Show Dashboard on Startup
         if self.dashboard:
             QTimer.singleShot(0, self._show_dashboard_near_tray)
-            
+
+        # Welcome banner on first launch
+        self._welcome_banner = None
+        QTimer.singleShot(800, self._maybe_show_welcome)
+
         # Check for updates
         QTimer.singleShot(2000, self.check_for_updates)
     
+    def _maybe_show_welcome(self):
+        """Show the welcome banner on first launch (or when --welcome is passed)."""
+        if self.config.get("welcome_shown", False) and WELCOME_ARG not in sys.argv:
+            return
+        if not self.dashboard or not self.dashboard.isVisible():
+            return
+        self._show_welcome_banner()
+
+    def _show_welcome_banner(self):
+        from ui.widgets.welcome_banner import WelcomeBanner
+        from ui.constants import ROOT_MARGIN
+        appearance = self.config.get("appearance", {})
+        glass_ui = appearance.get("glass_ui", False)
+        glass_is_light = (
+            self.theme_manager.get_effective_theme() == "light"
+            if self.theme_manager else False
+        )
+        button_style = appearance.get("button_style", "Gradient")
+        border_effect = appearance.get("border_effect", "None")
+
+        dash = self.dashboard
+        dash._ignore_focus_loss = True
+        # Dismiss the banner if the user opens settings
+        dash.btn_settings.clicked.connect(self._on_welcome_done)
+
+        self._welcome_banner = WelcomeBanner(
+            button_style=button_style,
+            border_effect=border_effect,
+            text_color="#ffffff" if not glass_is_light else "#222222",
+            glass_ui=glass_ui,
+            glass_is_light=glass_is_light,
+        )
+        self._welcome_banner.finished.connect(self._on_welcome_done)
+
+        above = not dash._is_top_anchored()
+        if above:
+            container_edge = dash.y() + ROOT_MARGIN
+        else:
+            container_edge = dash.y() + dash.height() - ROOT_MARGIN
+        self._welcome_banner.show_at(dash.x(), dash.width(), container_edge, above)
+
+    def _on_welcome_done(self):
+        self.config["welcome_shown"] = True
+        self.save_config()
+        if self.dashboard:
+            self.dashboard._ignore_focus_loss = False
+            try:
+                self.dashboard.btn_settings.clicked.disconnect(self._on_welcome_done)
+            except RuntimeError:
+                pass
+        if self._welcome_banner:
+            self._welcome_banner.finished.disconnect(self._on_welcome_done)
+            self._welcome_banner.hide()
+        self._welcome_banner = None
+
     def init_shortcuts(self):
         """Initialize global shortcuts."""
         shortcut_config = self.config.get('shortcut', {'type': 'keyboard', 'value': '<ctrl>+<alt>+h'})
