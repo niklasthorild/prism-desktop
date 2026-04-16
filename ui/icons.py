@@ -132,7 +132,8 @@ class Icons:
     WEATHER_SUNNY = "\U000F0599"       # mdi-weather-sunny
     WEATHER_WINDY = "\U000F059D"       # mdi-weather-windy
     WEATHER_WINDY_VARIANT = "\U000F059E" # mdi-weather-windy-variant
-    ALERT_CIRCLE = "\U000F0028"        # mdi-alert-circle (for exceptional)
+    ALERT_CIRCLE = "\U000F0028"        # mdi-alert-circle
+    ALERT_CIRCLE_OUTLINE = "\U000F05D6"  # mdi-alert-circle-outline
     
     # Camera
     CAMERA = "\U000F0024"              # mdi-camera

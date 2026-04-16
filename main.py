@@ -768,7 +768,20 @@ class PrismDesktopApp(QObject):
 
     @pyqtSlot(dict)
     def on_button_clicked(self, config):
-        _create_task_safe(self.service_dispatcher.handle_button_click(config))
+        _create_task_safe(self._handle_button_click(config))
+
+    async def _handle_button_click(self, config):
+        entity_id = config.get('entity_id', '')
+        if entity_id:
+            state = await self.ha_client.get_state(entity_id)
+            if state and state.get('state') in ('unavailable', 'unknown'):
+                from ui.icons import Icons, get_mdi_font
+                label = config.get('label') or entity_id.split('.', 1)[-1].replace('_', ' ').title()
+                mdi_family = get_mdi_font().family()
+                icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{Icons.ALERT_CIRCLE_OUTLINE}</span>'
+                self.dashboard.show_toast(f"{icon_html}&nbsp;&nbsp;{label} is unavailable")
+                return
+        await self.service_dispatcher.handle_button_click(config)
 
     @pyqtSlot(str, float)
     def on_volume_scroll(self, entity_id, volume):
