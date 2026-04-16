@@ -54,6 +54,7 @@ class NotificationBanner(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
 
+        self._is_light = glass_is_light  # used for non-glass styling too
         self._hovered = False  # once hovered, disable auto-dismiss
 
         # Auto-dismiss timer (stoppable)
@@ -89,39 +90,72 @@ class NotificationBanner(QWidget):
         self.label.setWordWrap(True)
         layout.addWidget(self.label, 1)
 
-        btn_style = (
-            "QPushButton {"
-            "  background: rgba(255,255,255,0.12);"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "  color: #ccc;"
-            "  padding: 2px 10px;"
-            f"  font-family: '{SYSTEM_FONT}';"
-            "  font-size: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "  background: rgba(255,255,255,0.2);"
-            "}"
-        )
+        if glass_is_light:
+            btn_style = (
+                "QPushButton {"
+                "  background: rgba(0,0,0,0.08);"
+                "  border: none;"
+                "  border-radius: 4px;"
+                "  color: #555;"
+                "  padding: 2px 10px;"
+                f"  font-family: '{SYSTEM_FONT}';"
+                "  font-size: 10px;"
+                "}"
+                "QPushButton:hover {"
+                "  background: rgba(0,0,0,0.15);"
+                "}"
+            )
+        else:
+            btn_style = (
+                "QPushButton {"
+                "  background: rgba(255,255,255,0.12);"
+                "  border: none;"
+                "  border-radius: 4px;"
+                "  color: #ccc;"
+                "  padding: 2px 10px;"
+                f"  font-family: '{SYSTEM_FONT}';"
+                "  font-size: 10px;"
+                "}"
+                "QPushButton:hover {"
+                "  background: rgba(255,255,255,0.2);"
+                "}"
+            )
 
         if banner_type == "confirm":
             btn_h = int((BANNER_HEIGHT - 8) * 0.75)
             use_gradient = button_style == "Gradient"
 
-            if use_gradient:
-                yes_bg       = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
-                                "stop:0 rgb(75,175,75),stop:1 rgb(50,145,50))")
-                yes_bg_hover = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
-                                "stop:0 rgb(90,200,90),stop:1 rgb(65,165,65))")
-                no_bg        = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
-                                "stop:0 rgb(195,65,65),stop:1 rgb(160,45,45))")
-                no_bg_hover  = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
-                                "stop:0 rgb(220,75,75),stop:1 rgb(185,55,55))")
+            if glass_is_light:
+                # Slightly desaturated for light backgrounds
+                if use_gradient:
+                    yes_bg       = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(68,160,68),stop:1 rgb(48,135,48))")
+                    yes_bg_hover = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(80,180,80),stop:1 rgb(60,155,60))")
+                    no_bg        = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(185,58,58),stop:1 rgb(155,42,42))")
+                    no_bg_hover  = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(210,68,68),stop:1 rgb(178,50,50))")
+                else:
+                    yes_bg       = "rgb(52,148,52)"
+                    yes_bg_hover = "rgb(65,170,65)"
+                    no_bg        = "rgb(168,52,52)"
+                    no_bg_hover  = "rgb(195,62,62)"
             else:
-                yes_bg       = "rgb(55,155,55)"
-                yes_bg_hover = "rgb(70,180,70)"
-                no_bg        = "rgb(175,55,55)"
-                no_bg_hover  = "rgb(205,65,65)"
+                if use_gradient:
+                    yes_bg       = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(75,175,75),stop:1 rgb(50,145,50))")
+                    yes_bg_hover = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(90,200,90),stop:1 rgb(65,165,65))")
+                    no_bg        = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(195,65,65),stop:1 rgb(160,45,45))")
+                    no_bg_hover  = ("qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+                                    "stop:0 rgb(220,75,75),stop:1 rgb(185,55,55))")
+                else:
+                    yes_bg       = "rgb(55,155,55)"
+                    yes_bg_hover = "rgb(70,180,70)"
+                    no_bg        = "rgb(175,55,55)"
+                    no_bg_hover  = "rgb(205,65,65)"
 
             yes_style = (
                 f"QPushButton {{ background: {yes_bg}; border: none; border-radius: 6px;"
@@ -318,20 +352,27 @@ class NotificationBanner(QWidget):
                 painter.setBrush(QColor(20, 20, 20, 100))
             painter.drawRoundedRect(rect, 8, 8)
         else:
-            painter.setBrush(QColor(40, 40, 40, 255))
+            if self._is_light:
+                painter.setBrush(QColor(240, 240, 240, 255))
+            else:
+                painter.setBrush(QColor(40, 40, 40, 255))
             painter.drawRoundedRect(rect, 8, 8)
 
         # Subtle border
-        painter.setPen(QColor(255, 255, 255, 30))
+        if self._is_light:
+            painter.setPen(QColor(0, 0, 0, 40))
+        else:
+            painter.setPen(QColor(255, 255, 255, 30))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 8, 8)
 
-        # Bevel edge
-        DashboardButtonPainter.draw_button_bevel_edge(
-            painter, rect,
-            intensity_modifier=0.3,
-            corner_radius=8,
-        )
+        # Bevel edge (only in dark mode — white highlight is invisible on light bg)
+        if not self._is_light:
+            DashboardButtonPainter.draw_button_bevel_edge(
+                painter, rect,
+                intensity_modifier=0.3,
+                corner_radius=8,
+            )
 
         # Border effect (runs once on open, same as dashboard)
         if self.border_anim.state() == QPropertyAnimation.State.Running:

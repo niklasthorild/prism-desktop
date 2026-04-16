@@ -105,10 +105,10 @@ class SettingsWidget(QWidget):
         
         # Input backgrounds: slightly darker/lighter than base
         if is_light:
-            input_bg = "rgba(0, 0, 0, 0.05)"
-            input_border = "rgba(0, 0, 0, 0.15)"
+            input_bg = "rgba(0, 0, 0, 0.06)"
+            input_border = "rgba(0, 0, 0, 0.25)"
             input_focus_bg = "rgba(0, 0, 0, 0.08)"
-            section_header_color = "#666666"  # Dark gray for light mode
+            section_header_color = "#555555"  # Dark gray for light mode
         else:
             input_bg = "rgba(255, 255, 255, 0.08)"
             input_border = "rgba(255, 255, 255, 0.1)"
@@ -117,8 +117,8 @@ class SettingsWidget(QWidget):
             
         # Pill Background (Semi-transparent container for readability)
         if is_light:
-            pill_bg = "rgba(255, 255, 255, 0.6)"
-            pill_border = "rgba(0, 0, 0, 0.05)"
+            pill_bg = "rgba(255, 255, 255, 0.85)"
+            pill_border = "rgba(0, 0, 0, 0.12)"
         else:
             pill_bg = "rgba(30, 30, 30, 0.6)"
             pill_border = "rgba(255, 255, 255, 0.05)"

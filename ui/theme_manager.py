@@ -32,16 +32,16 @@ class ThemeManager(QObject):
     
     # Light mode color palette
     LIGHT_COLORS = {
-        'window': '#e0e0e0',
+        'window': '#eaeaea',
         'window_text': '#1e1e1e',
         'base': '#ffffff',
         'alternate_base': '#f5f5f5',
         'text': '#1e1e1e',
-        'button': '#e5e5e5',
+        'button': '#ffffff',
         'button_text': '#1e1e1e',
         'highlight': '#0078d4',
         'highlight_text': '#ffffff',
-        'border': '#d1d1d1',
+        'border': '#bebebe',
         'accent': '#0078d4',
     }
     
