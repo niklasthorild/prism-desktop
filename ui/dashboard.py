@@ -359,13 +359,15 @@ class Dashboard(QWidget):
 
     # ── Notification Banner API ─────────────────────────────────────────
 
-    def show_toast(self, message: str, duration_ms: int = 7000):
+    BANNER_DISMISS_MS = 5000  # shared auto-dismiss duration for all banners
+
+    def show_toast(self, message: str, duration_ms: int = None):
         """Show an auto-dismissing floating notification banner."""
         # Don't override an active confirm banner
         if self._active_banner and self._active_banner.banner_type == "confirm":
             return
         self._dismiss_banner_immediate()
-        self._show_banner(message, "toast", auto_dismiss_ms=duration_ms)
+        self._show_banner(message, "toast", auto_dismiss_ms=duration_ms or self.BANNER_DISMISS_MS)
 
     def show_confirm(self, message: str, on_confirm=None, on_reject=None):
         """Show a floating confirmation banner with Yes/No buttons."""
@@ -376,7 +378,9 @@ class Dashboard(QWidget):
         if on_reject:
             banner.rejected.connect(on_reject)
 
-    def _show_banner(self, message: str, banner_type: str, auto_dismiss_ms: int = 4000):
+    def _show_banner(self, message: str, banner_type: str, auto_dismiss_ms: int = None):
+        if auto_dismiss_ms is None:
+            auto_dismiss_ms = self.BANNER_DISMISS_MS
         """Create and show a floating notification banner outside the dashboard."""
         if self.overlay_manager:
             self.overlay_manager.close_all_overlays()

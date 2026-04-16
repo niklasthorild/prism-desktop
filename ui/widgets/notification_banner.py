@@ -6,7 +6,7 @@ Supports toast (auto-dismiss) and confirm (Yes/No) modes.
 
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, pyqtProperty, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint
-from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath
+from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath, QPen
 from core.utils import SYSTEM_FONT
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.constants import BANNER_HEIGHT, BANNER_VERTICAL_MARGIN, GRID_MARGIN_LEFT, GRID_MARGIN_RIGHT, ROOT_MARGIN
@@ -16,6 +16,55 @@ from ui.visuals.dashboard_effects import (
 
 
 GAP = 5  # px gap between dashboard edge and banner
+
+
+class _CountdownButton(QPushButton):
+    """QPushButton that draws a depleting arc around its border as a countdown."""
+
+    def __init__(self, *args, is_light=False, corner_radius=4, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._countdown = 0.0
+        self._is_light = is_light
+        self._corner_radius = corner_radius
+
+    def get_countdown(self):
+        return self._countdown
+
+    def set_countdown(self, val):
+        self._countdown = val
+        self.update()
+
+    countdown = pyqtProperty(float, get_countdown, set_countdown)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._countdown <= 0.0:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        pen_w = 2.0
+        rect = QRectF(self.rect()).adjusted(pen_w / 2, pen_w / 2, -pen_w / 2, -pen_w / 2)
+        r = self._corner_radius
+
+        # Build the full border path and measure it
+        path = QPainterPath()
+        path.addRoundedRect(rect, r, r)
+        total = path.length()
+        if total <= 0:
+            painter.end()
+            return
+
+        drawn = total * self._countdown
+        color = QColor(0, 0, 0, 110) if self._is_light else QColor(255, 255, 255, 150)
+        pen = QPen(color, pen_w)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        # Dash pattern: show `drawn` px then skip the rest (values in pen-width units)
+        pen.setDashPattern([drawn / pen_w, max(0.001, (total - drawn) / pen_w)])
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
+        painter.end()
 
 
 class NotificationBanner(QWidget):
@@ -42,7 +91,7 @@ class NotificationBanner(QWidget):
         # Border effect animation (same pattern as dashboard)
         self._border_progress = 0.0
         self.border_anim = QPropertyAnimation(self, b"glow_progress")
-        self.border_anim.setDuration(3000)
+        self.border_anim.setDuration(2000)
         self.border_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
         # Window flags — frameless, on top, no taskbar entry
@@ -61,6 +110,9 @@ class NotificationBanner(QWidget):
         self._dismiss_timer = QTimer(self)
         self._dismiss_timer.setSingleShot(True)
         self._dismiss_timer.timeout.connect(self._on_dismiss)
+
+        # Countdown arc animation — wired up in show_at once the button exists
+        self._timer_anim = None
 
         # Slide + fade animation
         self._anim_progress = 0.0
@@ -177,13 +229,14 @@ class NotificationBanner(QWidget):
                 f"  font-family: '{SYSTEM_FONT}'; font-size: 11px; font-weight: 500; }}"
                 f"QPushButton:hover {{ background: {no_bg_hover}; }}"
             )
-            self.btn_no = QPushButton("No")
+            self.btn_no = _CountdownButton("No", is_light=glass_is_light, corner_radius=6)
             self.btn_no.setFixedHeight(btn_h)
             self.btn_no.setMinimumWidth(54)
             self.btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_no.setStyleSheet(no_style)
             self.btn_no.clicked.connect(self._on_reject)
             layout.addWidget(self.btn_no)
+            self._countdown_btn = self.btn_no
         else:
             btn_h = int((BANNER_HEIGHT - 8) * 0.75)
             close_style = (
@@ -191,12 +244,13 @@ class NotificationBanner(QWidget):
                 f"  color: #fff; font-family: '{SYSTEM_FONT}'; font-size: 10px; }}"
                 f"QPushButton:hover {{ background: rgb(205,65,65); }}"
             )
-            self.btn_close = QPushButton("\u2715")
+            self.btn_close = _CountdownButton("\u2715", is_light=glass_is_light, corner_radius=4)
             self.btn_close.setFixedSize(btn_h, btn_h)
             self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_close.setStyleSheet(close_style)
             self.btn_close.clicked.connect(self._on_dismiss)
             layout.addWidget(self.btn_close)
+            self._countdown_btn = self.btn_close
 
     def _compute_content_height(self, width: int) -> int:
         """Explicitly compute the banner's pixel height from its content.
@@ -275,6 +329,8 @@ class NotificationBanner(QWidget):
             slide_from_y = y - 8
 
         self._target_y = y
+        self._banner_x = x
+        self._above = above
 
         # Capture glass background before the window appears so we grab clean desktop.
         if self._glass_ui:
@@ -297,9 +353,18 @@ class NotificationBanner(QWidget):
         self._slide_anim.setEndValue(1.0)
         self._slide_anim.start()
 
-        # Auto-dismiss timer for toasts
-        if self.banner_type == "toast" and self._auto_dismiss_ms > 0:
+        # Auto-dismiss timer + countdown arc (toast = dismiss, confirm = reject on timeout)
+        if self._auto_dismiss_ms > 0:
+            if self.banner_type == "confirm":
+                self._dismiss_timer.timeout.disconnect(self._on_dismiss)
+                self._dismiss_timer.timeout.connect(self._on_reject)
             self._dismiss_timer.start(self._auto_dismiss_ms)
+            self._timer_anim = QPropertyAnimation(self._countdown_btn, b"countdown")
+            self._timer_anim.setDuration(self._auto_dismiss_ms)
+            self._timer_anim.setEasingCurve(QEasingCurve.Type.Linear)
+            self._timer_anim.setStartValue(1.0)
+            self._timer_anim.setEndValue(0.0)
+            self._timer_anim.start()
 
         # Border effect animation
         if self._border_effect and self._border_effect != "None":
@@ -321,9 +386,11 @@ class NotificationBanner(QWidget):
     def enterEvent(self, event):
         """Pause auto-dismiss on hover; once hovered it won't auto-dismiss."""
         super().enterEvent(event)
-        if self.banner_type == "toast":
-            self._hovered = True
-            self._dismiss_timer.stop()
+        self._hovered = True
+        self._dismiss_timer.stop()
+        if self._timer_anim:
+            self._timer_anim.stop()
+            self._countdown_btn.set_countdown(0.0)
 
     def leaveEvent(self, event):
         """Leave does nothing — user must click X after hovering."""
@@ -378,11 +445,34 @@ class NotificationBanner(QWidget):
 
         painter.end()
 
+    def _animate_out(self, callback):
+        """Fade + slide away, then call callback."""
+        self._dismiss_timer.stop()
+        if self._timer_anim:
+            self._timer_anim.stop()
+
+        slide_to_y = self._target_y + (8 if self._above else -8)
+
+        self._pos_anim.stop()
+        self._pos_anim.setStartValue(QPoint(self._banner_x, self._target_y))
+        self._pos_anim.setEndValue(QPoint(self._banner_x, slide_to_y))
+        self._pos_anim.setDuration(220)
+        self._pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._pos_anim.start()
+
+        self._slide_anim.stop()
+        self._slide_anim.setStartValue(self.windowOpacity())
+        self._slide_anim.setEndValue(0.0)
+        self._slide_anim.setDuration(220)
+        self._slide_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._slide_anim.finished.connect(callback)
+        self._slide_anim.start()
+
     def _on_confirm(self):
-        self.confirmed.emit()
+        self._animate_out(self.confirmed.emit)
 
     def _on_reject(self):
-        self.rejected.emit()
+        self._animate_out(self.rejected.emit)
 
     def _on_dismiss(self):
-        self.dismissed.emit()
+        self._animate_out(self.dismissed.emit)
