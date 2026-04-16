@@ -1280,6 +1280,9 @@ class Dashboard(QWidget):
         new_page = max(0, min(index, self._page_count - 1))
         if new_page == self._current_page:
             return
+        if hasattr(self, 'overlay_manager'):
+            self.overlay_manager._pending_open_action = None
+            self.overlay_manager.close_all_overlays()
         self._current_page = new_page
         self.btn_page_indicator.set_page(new_page)
         self.grid_manager.set_buttons(self._all_button_configs, update_height=False)

@@ -141,6 +141,7 @@ class PrismDesktopApp(QObject):
         # Helper for update check
         self._update_thread = None
         self._temperature_unit_initialized = 'temperature_unit' in self.config.get('appearance', {})
+        self._glass_ui_active = self.config.get('appearance', {}).get('glass_ui', False)
 
         # Show Dashboard on Startup
         if self.dashboard:
@@ -464,13 +465,16 @@ class PrismDesktopApp(QObject):
 
     async def _process_settings_change(self, new_config):
         print("Settings saved, reinitializing...")
-        
+
         new_ha_config = new_config.get('home_assistant', {})
         new_url = new_ha_config.get('url', '').rstrip('/')
         new_token = new_ha_config.get('token', '')
-        
+
         ha_changed = (self.ha_client.url != new_url or self.ha_client.token != new_token)
-        
+        new_glass_ui = new_config.get('appearance', {}).get('glass_ui', False)
+        glass_ui_enabled = not self._glass_ui_active and new_glass_ui
+        self._glass_ui_active = new_glass_ui
+
         self.config_manager.config = new_config
         self.config = self.config_manager.config
         self._temperature_unit_initialized = 'temperature_unit' in self.config.get('appearance', {})
@@ -489,8 +493,12 @@ class PrismDesktopApp(QObject):
                 self.dashboard.refresh_tray_anchor(move_now=True, tray_geometry=self._tray_geometry())
         
         if self.input_manager:
-             self.input_manager.update_shortcut(self.config.get('shortcut', {}))
-             
+            self.input_manager.update_shortcut(self.config.get('shortcut', {}))
+
+        if glass_ui_enabled and self.dashboard:
+            from ui.notifications import notify_glass_ui_warning
+            notify_glass_ui_warning(self.dashboard)
+
         if ha_changed:
             print("HA config changed, restarting connections...")
             # Clear mobile_app registration so we re-register with the new HA instance
@@ -724,7 +732,8 @@ class PrismDesktopApp(QObject):
             # Try 1×1 fallback
             tgt_row, tgt_col = self.dashboard.find_first_empty_slot_on_page(target_page, 1, 1)
             if tgt_row < 0:
-                self.dashboard.show_toast(f"Page {target_page + 1} is full. Cannot move button.")
+                from ui.notifications import notify_page_full
+                notify_page_full(self.dashboard, target_page + 1)
                 return
 
             def _do_move_as_1x1():
@@ -744,10 +753,8 @@ class PrismDesktopApp(QObject):
                 self.save_config()
                 self.dashboard.set_buttons(btns, self.config.get('appearance', {}))
 
-            self.dashboard.show_confirm(
-                f"No room at {orig_sx}\u00d7{orig_sy} on Page {target_page + 1}. Move as 1\u00d71?",
-                on_confirm=_do_move_as_1x1
-            )
+            from ui.notifications import notify_move_as_1x1
+            notify_move_as_1x1(self.dashboard, orig_sx, orig_sy, target_page + 1, _do_move_as_1x1)
             return
 
         # Perform the move (original span fits)
@@ -775,11 +782,9 @@ class PrismDesktopApp(QObject):
         if entity_id:
             state = await self.ha_client.get_state(entity_id)
             if state and state.get('state') in ('unavailable', 'unknown'):
-                from ui.icons import Icons, get_mdi_font
+                from ui.notifications import notify_entity_unavailable
                 label = config.get('label') or entity_id.split('.', 1)[-1].replace('_', ' ').title()
-                mdi_family = get_mdi_font().family()
-                icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{Icons.ALERT_CIRCLE_OUTLINE}</span>'
-                self.dashboard.show_toast(f"{icon_html}&nbsp;&nbsp;{label} is unavailable")
+                notify_entity_unavailable(self.dashboard, label)
                 return
         await self.service_dispatcher.handle_button_click(config)
 
@@ -1006,15 +1011,28 @@ class PrismDesktopApp(QObject):
     def on_update_available(self, new_version):
         """Handle update available."""
         print(f"Update available: {new_version}")
-        self.dashboard.show_confirm(
-            f"Prism Desktop {new_version} is available. Download now?",
+        from ui.notifications import notify_update_available
+        notify_update_available(
+            self.dashboard,
+            new_version,
             on_confirm=lambda: QDesktopServices.openUrl(
                 QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")
-            )
+            ),
         )
 
 
 if __name__ == '__main__':
+    print(r"""
+  ____       _
+ |  _ \ _ __(_)___ _ __ ___
+ | |_) | '__| / __| '_ ` _ \
+ |  __/| |  | \__ \ | | | | |
+ |_|   |_|  |_|___/_| |_| |_|
+
+ Home Assistant Desktop  v""" + DISPLAY_VERSION + """
+ ----------------------------------------------------------
+""")
+
     # Bootstrap
     qt_argv = list(sys.argv)
     qt_argv[0] = "prism-desktop"

@@ -608,9 +608,8 @@ class SettingsWidget(QWidget):
                 self.config.setdefault('mobile_app', {})['location_enabled'] = False
                 dashboard = self.window()
                 if hasattr(dashboard, 'show_toast'):
-                    dashboard.show_toast(
-                        f"GeoClue2 not found. Install: {install_cmd}"
-                    )
+                    from ui.notifications import notify_geoclue2_missing
+                    notify_geoclue2_missing(dashboard, install_cmd)
                 return
             # GeoClue2 is available — ensure .desktop file exists
             ensure_desktop_file()
