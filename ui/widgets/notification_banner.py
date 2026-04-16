@@ -358,21 +358,11 @@ class NotificationBanner(QWidget):
                 painter.setBrush(QColor(40, 40, 40, 255))
             painter.drawRoundedRect(rect, 8, 8)
 
-        # Subtle border
-        if self._is_light:
-            painter.setPen(QColor(0, 0, 0, 40))
-        else:
-            painter.setPen(QColor(255, 255, 255, 30))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 8, 8)
-
-        # Bevel edge (only in dark mode — white highlight is invisible on light bg)
-        if not self._is_light:
-            DashboardButtonPainter.draw_button_bevel_edge(
-                painter, rect,
-                intensity_modifier=0.3,
-                corner_radius=8,
-            )
+        DashboardButtonPainter.draw_image_edge_effects(
+            painter, rect,
+            is_light=self._is_light,
+            corner_radius=8,
+        )
 
         # Border effect (runs once on open, same as dashboard)
         if self.border_anim.state() == QPropertyAnimation.State.Running:

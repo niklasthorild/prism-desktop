@@ -150,9 +150,10 @@ class DashboardButtonPainter:
         # Gives ALL configured buttons a subtle physical lip, making them feel like 3D glass/plastic tiles
         button_style = getattr(button, 'button_style', 'Gradient')
         if button.config and button.config.get('type') != 'forbidden' and button_style == 'Gradient':
+            is_light = (button.theme_manager and button.theme_manager.get_effective_theme() == 'light')
             painter = QPainter(button)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            DashboardButtonPainter.draw_button_bevel_edge(painter, QRectF(button.rect()), intensity_modifier=0.25)
+            DashboardButtonPainter.draw_button_bevel_edge(painter, QRectF(button.rect()), intensity_modifier=0.25, is_light=is_light)
             painter.end()
 
     @staticmethod
@@ -1045,46 +1046,41 @@ class DashboardButtonPainter:
         painter.drawRoundedRect(rect, 9, 9)
 
     @staticmethod
-    def draw_image_edge_effects(painter, rect, is_top_clamped=False):
+    def draw_image_edge_effects(painter, rect, is_top_clamped=False, is_light=False, corner_radius=12):
         """Draws a soft inner vignette shadow and a bright top-left specular highlight to make camera feeds look like physical glass rather than hard stickers."""
         painter.save()
-        
-        # 1. Inner Vignette (Soft dark border)
-        # Using a radial gradient acts as a great recessed shadow
+
+        # 1. Inner Vignette — clipped to rounded rect so Multiply mode doesn't
+        #    bleed into transparent widget corners and create a visible dark box
+        clip = QPainterPath()
+        clip.addRoundedRect(rect, corner_radius, corner_radius)
+        painter.setClipPath(clip)
+
         center = rect.center()
         radius = max(rect.width(), rect.height()) / 1.5
-        
+
         grad = QRadialGradient(center, radius)
         grad.setColorAt(0.7, QColor(0, 0, 0, 0))    # Transparent core
         grad.setColorAt(1.0, QColor(0, 0, 0, 100))  # Darkened exterior edges
-        
+
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
         painter.fillRect(rect, grad)
-        
-        # Restore composition mode for the highlight
+
+        # Restore for the highlight pass
+        painter.setClipping(False)
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-        
+
         # 2. Specular Glass Highlight & Perimeter
-        DashboardButtonPainter.draw_button_bevel_edge(painter, rect, intensity_modifier=2.0, is_top_clamped=is_top_clamped)
-            
+        DashboardButtonPainter.draw_button_bevel_edge(painter, rect, intensity_modifier=1.3, is_top_clamped=is_top_clamped, is_light=is_light, corner_radius=corner_radius)
+
         painter.restore()
 
     @staticmethod
-    def draw_button_bevel_edge(painter, rect, intensity_modifier=1.0, is_top_clamped=False, corner_radius=11):
-        """Draws a bright top-left specular highlight to simulate physical glass/plastic thickness."""
+    def draw_button_bevel_edge(painter, rect, intensity_modifier=1.0, is_top_clamped=False, corner_radius=11, is_light=False):
+        """Draws a top-left specular highlight and perimeter outline to give buttons physical depth."""
         painter.save()
 
         line_rect = QRectF(rect)
-
-        highlight_grad = QLinearGradient(line_rect.topLeft(), line_rect.topRight())
-
-        # Base opacities
-        alpha_start = min(255, int(45 * intensity_modifier))
-        alpha_mid = min(255, int(15 * intensity_modifier))
-
-        highlight_grad.setColorAt(0.0, QColor(255, 255, 255, alpha_start)) # Bright left edge
-        highlight_grad.setColorAt(0.4, QColor(255, 255, 255, alpha_mid))   # Fading across top
-        highlight_grad.setColorAt(1.0, QColor(255, 255, 255, 0))           # Transparent right
 
         def make_path(adj_rect, r):
             p = QPainterPath()
@@ -1100,18 +1096,32 @@ class DashboardButtonPainter:
                 p.addRoundedRect(adj_rect, r, r)
             return p
 
-        # Stroke an inner border path
-        pen = QPen(QBrush(highlight_grad), 2.0)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawPath(make_path(line_rect.adjusted(1, 1, -1, -1), corner_radius))
+        if is_light:
+            # Light mode: skip white highlight (invisible), just draw a visible dark perimeter
+            perimeter_pen = QPen(QColor(0, 0, 0, 28))
+            perimeter_pen.setWidthF(1.0)
+            painter.setPen(perimeter_pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(make_path(line_rect.adjusted(0.5, 0.5, -0.5, -0.5), corner_radius + 0.5))
+        else:
+            # Dark mode: white top-left highlight gradient + subtle white perimeter
+            highlight_grad = QLinearGradient(line_rect.topLeft(), line_rect.topRight())
+            alpha_start = min(255, int(45 * intensity_modifier))
+            alpha_mid = min(255, int(15 * intensity_modifier))
+            highlight_grad.setColorAt(0.0, QColor(255, 255, 255, alpha_start))
+            highlight_grad.setColorAt(0.4, QColor(255, 255, 255, alpha_mid))
+            highlight_grad.setColorAt(1.0, QColor(255, 255, 255, 0))
 
-        # Perimeter Outline (Separates dark surfaces from dark app backgrounds)
-        perimeter_alpha = min(255, int(15 * intensity_modifier))
-        perimeter_pen = QPen(QColor(255, 255, 255, perimeter_alpha)) # Very subtle white frame
-        perimeter_pen.setWidthF(1.0)
-        painter.setPen(perimeter_pen)
-        painter.drawPath(make_path(line_rect.adjusted(0.5, 0.5, -0.5, -0.5), corner_radius + 0.5))
+            pen = QPen(QBrush(highlight_grad), 2.0)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(make_path(line_rect.adjusted(1, 1, -1, -1), corner_radius))
+
+            perimeter_alpha = min(255, int(15 * intensity_modifier))
+            perimeter_pen = QPen(QColor(255, 255, 255, perimeter_alpha))
+            perimeter_pen.setWidthF(1.0)
+            painter.setPen(perimeter_pen)
+            painter.drawPath(make_path(line_rect.adjusted(0.5, 0.5, -0.5, -0.5), corner_radius + 0.5))
 
         painter.restore()
 

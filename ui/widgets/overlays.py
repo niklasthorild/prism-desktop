@@ -217,7 +217,7 @@ class DimmerOverlay(QWidget):
             
         painter.setClipping(False)
         # Apply the shared glass edge effect (vignette + specular highlight) OVER the fill
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
             
         # Draw Rainbow Border (Spin) if animating
         if self.anim_border.state() == QPropertyAnimation.State.Running:
@@ -553,7 +553,7 @@ class ClimateOverlay(QWidget):
         painter.drawRoundedRect(rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
         
         # Apply the shared glass edge effect (vignette + specular highlight)
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
         
         # Draw Rainbow Border (Spin) if animating
         # Draw Rainbow Border (Spin) if animating
@@ -1204,7 +1204,7 @@ class PrinterOverlay(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
         
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
         
         if self.anim_border.state() == QPropertyAnimation.State.Running:
             if self._border_effect == 'Rainbow':
@@ -1702,7 +1702,7 @@ class WeatherOverlay(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
         
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
         
         # Border animation
         if self.anim_border.state() == QPropertyAnimation.State.Running:
@@ -1997,7 +1997,7 @@ class CameraOverlay(QWidget):
             # Keep clipping active for edge effects
             # painter.setClipping(False) # REMOVED
 
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
         
         if self.anim_border.state() == QPropertyAnimation.State.Running:
             if self._border_effect == 'Rainbow':
@@ -2331,7 +2331,7 @@ class RobotOverlay(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(rect, OVERLAY_CORNER_RADIUS, OVERLAY_CORNER_RADIUS)
 
-        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False)
+        DashboardButtonPainter.draw_image_edge_effects(painter, QRectF(rect), is_top_clamped=False, is_light=self._is_light_bg())
 
         # Border animation
         if self.anim_border.state() == QPropertyAnimation.State.Running:

@@ -7,9 +7,15 @@ class DashboardButtonStyleManager:
     @staticmethod
     def _get_gradient(color_str, lighten_factor=110):
         c_base = QColor(color_str)
-        c_top = c_base.lighter(lighten_factor)
+        # For near-white colors, lightening does nothing — darken the bottom instead
+        if c_base.lightnessF() > 0.90:
+            c_top = c_base
+            c_bottom = c_base.darker(115)
+        else:
+            c_top = c_base.lighter(lighten_factor)
+            c_bottom = c_base
         color_top = f"rgba({c_top.red()}, {c_top.green()}, {c_top.blue()}, {c_base.alphaF():.2f})"
-        color_bottom = f"rgba({c_base.red()}, {c_base.green()}, {c_base.blue()}, {c_base.alphaF():.2f})"
+        color_bottom = f"rgba({c_bottom.red()}, {c_bottom.green()}, {c_bottom.blue()}, {c_base.alphaF():.2f})"
         return f"background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 {color_top}, stop: 1 {color_bottom});"
 
     @staticmethod
