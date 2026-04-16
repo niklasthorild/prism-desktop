@@ -21,6 +21,7 @@ from core.utils import SYSTEM_FONT
 
 from core.build_info import APP_VERSION, get_display_version
 from core.worker_threads import ConnectionTestThread
+from ui.icons import Icons, get_mdi_font
 from services.update_checker import UpdateCheckerThread
 from services.location_manager import (
     is_geoclue2_available, ensure_desktop_file,
@@ -146,8 +147,6 @@ class SettingsWidget(QWidget):
                 font-size: {Typography.SIZE_SMALL};
                 font-weight: {Typography.WEIGHT_BOLD};
                 color: {section_header_color};
-                margin-top: 10px;
-                margin-bottom: 2px;
             }}
             QLineEdit, QComboBox {{
                 background-color: {input_bg};
@@ -291,18 +290,14 @@ class SettingsWidget(QWidget):
         # 2. Pill Container for Form Content
         self.pill_frame = QFrame()
         self.pill_frame.setObjectName("settingsPill")
-        pill_layout = QVBoxLayout(self.pill_frame)
-        pill_layout.setContentsMargins(20, 20, 20, 20)
-        pill_layout.setSpacing(10)
-        
+        self.pill_layout = QVBoxLayout(self.pill_frame)
+        self.pill_layout.setContentsMargins(20, 20, 20, 20)
+        self.pill_layout.setSpacing(10)
+
         layout.addWidget(self.pill_frame)
-        
-        # 3. Form Layout (Inside Pill)
-        self.form = QFormLayout()
-        self.form.setVerticalSpacing(8)
-        self.form.setHorizontalSpacing(16)
-        
-        pill_layout.addLayout(self.form)
+
+        self.form = None  # Created fresh by each _add_section_header call
+        self._form_sections = []  # Track all section forms for label-width sync
         
         # --- Home Assistant Section ---
         self._add_section_header("HOME ASSISTANT")
@@ -464,12 +459,35 @@ class SettingsWidget(QWidget):
 
 
         layout.addStretch()
-        
+        self._sync_form_label_widths()
+        self._update_stylesheet()  # re-run now that toggles exist
+
+    def _sync_form_label_widths(self):
+        """Force all section forms to use the same label column width."""
+        max_w = 0
+        for form in self._form_sections:
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                if item and item.widget():
+                    item.widget().ensurePolished()
+                    max_w = max(max_w, item.widget().sizeHint().width())
+        for form in self._form_sections:
+            for row in range(form.rowCount()):
+                item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+                if item and item.widget():
+                    item.widget().setMinimumWidth(max_w)
+
     def _add_section_header(self, text):
-        """Helper to add spaced section header."""
+        """Add a section header label and start a fresh form layout for that section."""
         lbl = QLabel(text)
         lbl.setObjectName("sectionHeader")
-        self.form.addRow(lbl)
+        self.pill_layout.addWidget(lbl)
+
+        self.form = QFormLayout()
+        self.form.setVerticalSpacing(8)
+        self.form.setHorizontalSpacing(16)
+        self.pill_layout.addLayout(self.form)
+        self._form_sections.append(self.form)
 
     def get_content_height(self):
         """
@@ -735,7 +753,9 @@ class SettingsWidget(QWidget):
         token = self.token_input.text().strip()
 
         if not url or not token:
-            self.window().show_toast("Missing URL or token — fill in both fields first.")
+            mdi_family = get_mdi_font().family()
+            icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{Icons.LAN_DISCONNECT}</span>'
+            self.window().show_toast(f"{icon_html}&nbsp;&nbsp;Missing URL or token — fill in both fields first.")
             return
 
         self.test_btn.setEnabled(False)
@@ -751,8 +771,10 @@ class SettingsWidget(QWidget):
     @pyqtSlot(bool, str)
     def on_test_complete(self, success, message):
         self.test_btn.setEnabled(True)
-        icon = "✅" if success else "❌"
-        self.window().show_toast(f"{icon} {message}")
+        mdi_char = Icons.LAN_CONNECT if success else Icons.LAN_DISCONNECT
+        mdi_family = get_mdi_font().family()
+        icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{mdi_char}</span>'
+        self.window().show_toast(f"{icon_html}&nbsp;&nbsp;{message}")
 
     _VERSION_STYLE = 'style="color: #aaa; font-size: 11px; text-decoration: none;"'
     _HASH_STYLE = 'style="color: #FFC90E; font-size: 11px; text-decoration: none;"'

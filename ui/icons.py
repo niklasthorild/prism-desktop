@@ -162,6 +162,10 @@ class Icons:
     # Vacuum
     VACUUM = "\U000F097C"              # mdi-robot-vacuum
 
+    # Network / Connection
+    LAN_CONNECT = "\U000F0318"         # mdi-lan-connect
+    LAN_DISCONNECT = "\U000F0319"      # mdi-lan-disconnect
+
 # --- MDI Mapping Logic ---
 
 # --- MDI Mapping Logic ---

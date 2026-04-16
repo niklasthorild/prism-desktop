@@ -1171,12 +1171,18 @@ class DashboardButtonPainter:
                 s = (t - arm_frac - arc_frac) / arm_frac
                 return cx + arc_r_x, arc_cy + arm_len * s
 
+        # --- Determine light/dark mode ---
+        is_light = (getattr(button, 'theme_manager', None) and
+                    button.theme_manager.get_effective_theme() == 'light')
+        track_rgba   = (0, 0, 0, 80)   if is_light else (255, 255, 255, 65)
+        text_rgba    = (0, 0, 0, 180)  if is_light else (255, 255, 255, 160)
+
         # --- Draw track: single gray rail ---
         N = 80
         pen_width = 2.0
         pts = [u_point(i / (N - 1)) for i in range(N)]
 
-        track_pen = QPen(QColor(255, 255, 255, 65), pen_width)
+        track_pen = QPen(QColor(*track_rgba), pen_width)
         track_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(track_pen)
         for i in range(N - 1):
@@ -1291,7 +1297,7 @@ class DashboardButtonPainter:
                         interior_w  = arc_r_x * 2.0
                         interior_cy = (arc_cy + arm_bottom_y) / 2.0
                         painter.setFont(QFont(SYSTEM_FONT, 9))
-                        painter.setPen(QColor(255, 255, 255, 160))
+                        painter.setPen(QColor(*text_rgba))
                         painter.drawText(
                             QRectF(cx - interior_w / 2.0, interior_cy - 10, interior_w, 20),
                             Qt.AlignmentFlag.AlignCenter,
@@ -1318,7 +1324,7 @@ class DashboardButtonPainter:
                         interior_w  = arc_r_x * 2.0
                         interior_cy = (arc_cy + arm_bottom_y) / 2.0
                         painter.setFont(QFont(SYSTEM_FONT, 9))
-                        painter.setPen(QColor(255, 255, 255, 160))
+                        painter.setPen(QColor(*text_rgba))
                         painter.drawText(
                             QRectF(cx - interior_w / 2.0, interior_cy - 10, interior_w, 20),
                             Qt.AlignmentFlag.AlignCenter,

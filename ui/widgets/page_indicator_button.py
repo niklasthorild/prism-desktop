@@ -24,6 +24,7 @@ class PageIndicatorButton(QPushButton):
         super().__init__(parent)
         self._page_count = page_count
         self._current_page = current_page
+        self._is_light = False
 
         self.setFixedSize(PAGE_INDICATOR_WIDTH, FOOTER_HEIGHT)
         self.setText("")
@@ -36,6 +37,11 @@ class PageIndicatorButton(QPushButton):
     def set_page_count(self, n: int) -> None:
         self._page_count = n
         self.update()
+
+    def set_light_mode(self, is_light: bool) -> None:
+        if self._is_light != is_light:
+            self._is_light = is_light
+            self.update()
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -64,7 +70,7 @@ class PageIndicatorButton(QPushButton):
             opacity = self.ACTIVE_OPACITY if is_active else self.INACTIVE_OPACITY
             radius = diameter / 2
 
-            color = QColor(255, 255, 255, opacity)
+            color = QColor(0, 0, 0, opacity) if self._is_light else QColor(255, 255, 255, opacity)
             painter.setBrush(color)
             painter.drawEllipse(QPointF(cx, cy), radius, radius)
 

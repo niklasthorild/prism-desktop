@@ -381,12 +381,16 @@ class Dashboard(QWidget):
         if self.overlay_manager:
             self.overlay_manager.close_all_overlays()
         text_color = "#ffffff"
+        glass_is_light = False
         if self.theme_manager:
             text_color = self.theme_manager.get_colors().get('text', '#ffffff')
+            glass_is_light = self.theme_manager.get_effective_theme() == 'light'
         banner = NotificationBanner(message, banner_type, auto_dismiss_ms,
                                     button_style=self._button_style,
                                     border_effect=self._border_effect,
-                                    text_color=text_color)
+                                    text_color=text_color,
+                                    glass_ui=self._glass_ui,
+                                    glass_is_light=glass_is_light)
         banner.dismissed.connect(self._dismiss_banner)
         banner.confirmed.connect(self._dismiss_banner)
         banner.rejected.connect(self._dismiss_banner)
@@ -1124,6 +1128,7 @@ class Dashboard(QWidget):
             self.btn_settings.update()
 
             if hasattr(self, 'btn_page_indicator'):
+                is_light = (self.theme_manager and self.theme_manager.get_effective_theme() == 'light')
                 indicator_style = f"""
                     QPushButton {{
                         background-color: {bg};
@@ -1136,6 +1141,7 @@ class Dashboard(QWidget):
                 """
                 self.btn_page_indicator.setStyleSheet(indicator_style)
                 self.btn_page_indicator.button_style = self._button_style
+                self.btn_page_indicator.set_light_mode(is_light)
                 self.btn_page_indicator.update()
 
     def keyPressEvent(self, event):
@@ -1929,6 +1935,7 @@ class Dashboard(QWidget):
 
     def hide_settings(self):
         """Morph from Settings view back to Grid view."""
+        self._dismiss_banner_immediate()
         grid_width = calculate_width(self._cols)
         self._anim_start_width = self.width()
         self._fixed_width = grid_width

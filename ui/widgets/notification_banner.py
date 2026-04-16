@@ -4,9 +4,9 @@ A standalone floating window that appears above/below the dashboard.
 Supports toast (auto-dismiss) and confirm (Yes/No) modes.
 """
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QApplication
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, pyqtProperty, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint
-from PyQt6.QtGui import QPainter, QColor, QFont
+from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath
 from core.utils import SYSTEM_FONT
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.constants import BANNER_HEIGHT, BANNER_VERTICAL_MARGIN, GRID_MARGIN_LEFT, GRID_MARGIN_RIGHT, ROOT_MARGIN
@@ -27,13 +27,17 @@ class NotificationBanner(QWidget):
 
     def __init__(self, message: str, banner_type: str = "toast", auto_dismiss_ms: int = 4000,
                  button_style: str = "Gradient", border_effect: str = "None",
-                 text_color: str = "#ffffff"):
+                 text_color: str = "#ffffff", glass_ui: bool = False,
+                 glass_is_light: bool = False):
         super().__init__(None)
         self.banner_type = banner_type
         self._auto_dismiss_ms = auto_dismiss_ms
         self._border_effect = border_effect
         self._slide_origin = 0
         self._target_y = 0
+        self._glass_ui = glass_ui
+        self._glass_is_light = glass_is_light
+        self._glass_pixmap = None
 
         # Border effect animation (same pattern as dashboard)
         self._border_progress = 0.0
@@ -196,6 +200,26 @@ class NotificationBanner(QWidget):
         content_h = max(label_h, btn_h)
         return content_h + BANNER_VERTICAL_MARGIN * 2
 
+    def _capture_glass_background(self, x: int, y: int, w: int, h: int):
+        """Capture and blur the desktop region that will sit behind the banner."""
+        screen = QApplication.primaryScreen()
+        if not screen or w <= 0 or h <= 0:
+            return None
+        pixmap = screen.grabWindow(0, x, y, w, h)
+        if pixmap.isNull():
+            return None
+        blur_factor = 0.06
+        small = pixmap.scaled(
+            max(1, int(w * blur_factor)), max(1, int(h * blur_factor)),
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        return small.scaled(
+            w, h,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
     def show_at(self, x: int, width: int, container_edge_y: int, above: bool):
         """Position and show the banner with a slide+fade animation.
 
@@ -217,6 +241,14 @@ class NotificationBanner(QWidget):
             slide_from_y = y - 8
 
         self._target_y = y
+
+        # Capture glass background before the window appears so we grab clean desktop.
+        if self._glass_ui:
+            vis_x = x + ROOT_MARGIN
+            vis_w = width - ROOT_MARGIN * 2
+            vis_y = y + 2   # matches the 2 px top inset in paintEvent
+            vis_h = banner_h - 4
+            self._glass_pixmap = self._capture_glass_background(vis_x, vis_y, vis_w, vis_h)
 
         # Position invisible at slide-start, then animate in.
         self.move(x, slide_from_y)
@@ -272,10 +304,22 @@ class NotificationBanner(QWidget):
             -ROOT_MARGIN, -2,
         )
 
-        # Solid dark background — match dashboard container style
+        # Background — glass blur+tint or solid dark
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(40, 40, 40, 255))
-        painter.drawRoundedRect(rect, 8, 8)
+        if self._glass_ui and self._glass_pixmap:
+            clip = QPainterPath()
+            clip.addRoundedRect(rect, 8, 8)
+            painter.setClipPath(clip)
+            painter.drawPixmap(int(rect.x()), int(rect.y()), self._glass_pixmap)
+            painter.setClipping(False)
+            if self._glass_is_light:
+                painter.setBrush(QColor(240, 240, 240, 120))
+            else:
+                painter.setBrush(QColor(20, 20, 20, 100))
+            painter.drawRoundedRect(rect, 8, 8)
+        else:
+            painter.setBrush(QColor(40, 40, 40, 255))
+            painter.drawRoundedRect(rect, 8, 8)
 
         # Subtle border
         painter.setPen(QColor(255, 255, 255, 30))
