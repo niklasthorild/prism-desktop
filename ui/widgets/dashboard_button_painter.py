@@ -1304,15 +1304,19 @@ class DashboardButtonPainter:
                         hours   = total_secs // 3600
                         minutes = (total_secs % 3600) // 60
                         text    = f"{hours}H {minutes}M"
-                        interior_w  = arc_r_x * 2.0
                         interior_cy = (arc_cy + arm_bottom_y) / 2.0
-                        painter.setFont(QFont(SYSTEM_FONT, 9))
+                        pill_font = QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold)
+                        fm = QFontMetrics(pill_font)
+                        pill_w = fm.horizontalAdvance(text) + 20
+                        pill_h = 22
+                        pill_rect = QRectF(cx - pill_w / 2, interior_cy - pill_h / 2, pill_w, pill_h)
+                        pill_path = QPainterPath()
+                        pill_path.addRoundedRect(pill_rect, pill_h / 2, pill_h / 2)
+                        pill_bg = QColor(0, 0, 0, 55) if is_light else QColor(255, 255, 255, 30)
+                        painter.fillPath(pill_path, pill_bg)
+                        painter.setFont(pill_font)
                         painter.setPen(QColor(*text_rgba))
-                        painter.drawText(
-                            QRectF(cx - interior_w / 2.0, interior_cy - 10, interior_w, 20),
-                            Qt.AlignmentFlag.AlignCenter,
-                            text
-                        )
+                        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
                 except Exception:
                     pass
 
@@ -1331,15 +1335,19 @@ class DashboardButtonPainter:
                         hours   = total_secs // 3600
                         minutes = (total_secs % 3600) // 60
                         text = f"{hours}H {minutes}M"
-                        interior_w  = arc_r_x * 2.0
                         interior_cy = (arc_cy + arm_bottom_y) / 2.0
-                        painter.setFont(QFont(SYSTEM_FONT, 9))
+                        pill_font = QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold)
+                        fm = QFontMetrics(pill_font)
+                        pill_w = fm.horizontalAdvance(text) + 20
+                        pill_h = 22
+                        pill_rect = QRectF(cx - pill_w / 2, interior_cy - pill_h / 2, pill_w, pill_h)
+                        pill_path = QPainterPath()
+                        pill_path.addRoundedRect(pill_rect, pill_h / 2, pill_h / 2)
+                        pill_bg = QColor(0, 0, 0, 55) if is_light else QColor(255, 255, 255, 30)
+                        painter.fillPath(pill_path, pill_bg)
+                        painter.setFont(pill_font)
                         painter.setPen(QColor(*text_rgba))
-                        painter.drawText(
-                            QRectF(cx - interior_w / 2.0, interior_cy - 10, interior_w, 20),
-                            Qt.AlignmentFlag.AlignCenter,
-                            text
-                        )
+                        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
                 except Exception:
                     pass
 

@@ -153,7 +153,9 @@ class DashboardButton(QFrame):
 
         self.setup_ui()
         self.update_style()
-        
+
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         # Disable dropping (handled by parent Dashboard)
         self.setAcceptDrops(False)
         # Context menu
