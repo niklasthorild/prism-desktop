@@ -11,11 +11,8 @@
       forAllSystems = f:
         nixpkgs.lib.genAttrs systems
           (system: f (import nixpkgs { inherit system; }));
-      buildCommit =
-        if self ? dirtyRev then builtins.substring 0 12 self.dirtyRev
-        else if self ? rev then builtins.substring 0 12 self.rev
-        else "";
-      buildDirty = self ? dirtyRev;
+      buildCommit = "c25c22aaf16e";
+      buildDirty = false;
     in
     {
       packages = forAllSystems (pkgs:
@@ -41,7 +38,12 @@
             pname = "prism-desktop";
             inherit version;
 
-            src = ./.;
+            src = pkgs.fetchFromGitHub {
+              owner = "lasselian";
+              repo = "prism-desktop";
+              rev = version;
+              hash = "sha256-jgiQveKhzvFnb52oy4AWj+C12S7yW9d9z1MHU9Fy7xM=";
+            };
 
             nativeBuildInputs = [
               pkgs.python3
