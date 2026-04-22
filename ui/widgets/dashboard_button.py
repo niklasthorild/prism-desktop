@@ -631,7 +631,13 @@ class DashboardButton(QFrame):
         self._update_simple_icon_view(Icons.SCENE_THEME, "scene")
 
     def _update_fan_view(self):
-         self._update_simple_icon_view(Icons.FAN, "fan")
+        label = self.config.get('label', '')
+        self.value_label.setFont(get_mdi_font(26))
+        self.value_label.setText(Icons.FAN)
+        self.name_label.setText(label)
+        self.setProperty("type", "fan")
+        self.value_label.show()
+        self.name_label.show()
 
     def _update_simple_icon_view(self, default_icon, type_name):
         """Helper for simple icon+label buttons."""
