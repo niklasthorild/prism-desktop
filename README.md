@@ -64,11 +64,34 @@ It features a sleek dashboard with smooth animations, build in notifications, in
 Download the latest `PrismDesktopSetup.exe` from the Releases page. This will install the app and optionally set it to start with Windows.
 
 ### Linux Installer
-Download the latest `appimage` from the Releases page. or download and run from source.  
+Download the latest `.AppImage` from the Releases page.
 
-**GNOME:** 
-- make sure to install `AppIndicator and KStatusNotifierItem Support` through `Extension Manager
-- Wayland: the app-toggle shortcut now uses the desktop portal when the compositor supports `org.freedesktop.portal.GlobalShortcuts` (works on KDE). GNOME still has limited global shortcut support.
+1. Make it executable:
+   ```bash
+   chmod +x PrismDesktop-x86_64.AppImage
+   ```
+2. Run it:
+   ```bash
+   ./PrismDesktop-x86_64.AppImage
+   ```
+
+> **Note:** Some distributions (e.g. Ubuntu 22.04+) require `libfuse2` for AppImages to run:
+> ```bash
+> sudo apt install libfuse2
+> ```
+
+**GNOME:**
+- Install `AppIndicator and KStatusNotifierItem Support` through `Extension Manager` for system tray support.
+- Wayland: GNOME has limited global shortcut support. As a workaround, you can bind the following command to a custom keyboard shortcut in your system settings to toggle the app:
+  ```bash
+  /path/to/PrismDesktop-x86_64.AppImage --toggle
+  ```
+  Binding shortcuts to individual entities is not supported.
+
+**KDE:**
+- System tray works out of the box.
+- The app-toggle shortcut works via `org.freedesktop.portal.GlobalShortcuts`.
+- Binding shortcuts to individual entities is not supported on KDE.
 
 ### Manual / Portable
 You can also download the standalone `.exe` if you prefer not to install anything. Just run it, and it will create a configuration file in the same directory.
