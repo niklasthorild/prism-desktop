@@ -3,12 +3,13 @@ from PyQt6.QtCore import Qt, QRect, QRectF
 from PyQt6.QtGui import QPainter, QPainterPath, QPixmap, QColor, QPen
 
 def draw_frosted_pill(
-    painter: QPainter, 
-    pill_rect: typing.Union[QRect, QRectF], 
-    background_pixmap: QPixmap = None, 
-    bg_x_offset: float = 0, 
+    painter: QPainter,
+    pill_rect: typing.Union[QRect, QRectF],
+    background_pixmap: QPixmap = None,
+    bg_x_offset: float = 0,
     bg_y_offset: float = 0,
-    corner_radius: int = 14
+    corner_radius: int = 14,
+    force_dark: bool = False
 ) -> QColor:
     """
     Draws a frosted glass pill (or rounded rectangle) and returns the optimal 
@@ -74,16 +75,16 @@ def draw_frosted_pill(
             avg_lum = (0.2126 * (rs/cnt) + 0.7152 * (gs/cnt) + 0.0722 * (bs/cnt)) if cnt > 0 else 0
             
             # Determine contrasting colors based on brightness
-            if avg_lum > 128:
+            if not force_dark and avg_lum > 128:
                 # Background is LIGHT -> Use dark text/icons
-                text_color = QColor(0, 0, 0, 220)
-                bg_tint_color = QColor(255, 255, 255, 60) # Boost brightness slightly
-                border_color = QColor(0, 0, 0, 30)
+                text_color = QColor(0, 0, 0, 235)
+                bg_tint_color = QColor(255, 255, 255, 130) # Stronger frost over bright frames
+                border_color = QColor(0, 0, 0, 50)
             else:
                 # Background is DARK -> Use light text/icons
-                text_color = QColor(255, 255, 255, 240)
-                bg_tint_color = QColor(0, 0, 0, 60)       # Dim slightly
-                border_color = QColor(255, 255, 255, 50)
+                text_color = QColor(255, 255, 255, 250)
+                bg_tint_color = QColor(0, 0, 0, 130)       # Stronger dim for readability
+                border_color = QColor(255, 255, 255, 70)
                 
             # Render frosted glass slice
             painter.save()

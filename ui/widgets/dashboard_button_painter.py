@@ -722,9 +722,8 @@ class DashboardButtonPainter:
             w = rect.width()
             h = rect.height()
             
-            # 1. Camera Feed (Top Area)
-            strip_h = 44 # Reduced height to show more camera feed
-            cam_h = h - strip_h
+            # 1. Camera Feed (fills entire card; footer pills float over it)
+            cam_h = h
             cam_rect = QRectF(0, 0, w, cam_h)
             
             path = QPainterPath()
@@ -753,7 +752,7 @@ class DashboardButtonPainter:
                       y_bg = int(y_off)
                       
                  # Add glass edge effects (shadow + highlight) to the camera feed
-                 DashboardButtonPainter.draw_image_edge_effects(painter, cam_rect, is_top_clamped=True)
+                 DashboardButtonPainter.draw_image_edge_effects(painter, cam_rect, is_top_clamped=False)
                  
             else:
                  bg_pix = None
@@ -774,87 +773,92 @@ class DashboardButtonPainter:
             if printer_state.lower() not in ["off", "unavailable"]:
                 prog_str = f"{prog_val:.0f}%"
                 DashboardButtonPainter._draw_pill_label(
-                    painter, cam_rect, prog_str, bg_pix, x_bg, y_bg, position='top-right'
+                    painter, cam_rect, prog_str, bg_pix, x_bg, y_bg, position='top-right', force_dark=True
                 )
-            
-            # Draw Pill Overlay for Name (if button is bigger than 2x2)
-            # A 2x2 button has spans (2, 2). If either span is > 2, or both are > 2, etc.
-            # The prompt says "bigger than 2x2", let's assume ifspan_x > 2 or span_y > 2
+
             if button.span_x > 2 or button.span_y > 2:
                 btn_name = button.config.get("label", button.config.get("name", "3D Printer"))
                 DashboardButtonPainter._draw_pill_label(
-                    painter, cam_rect, btn_name, bg_pix, x_bg, y_bg, position='top-left'
+                    painter, cam_rect, btn_name, bg_pix, x_bg, y_bg, position='top-left', force_dark=True
                 )
             
-            # 2. Stats Strip (Bottom Area)
-            # We want the strip to look like frosted glass overlaying the bottom part of the button
-            # Or just a solid color block to keep it completely clear. Let's do a semi-transparent block matching the theme base
-            strip_bg = QColor(base_color)
-            strip_bg.setAlpha(240) # Mostly solid for readability
-            
-            strip_rect = QRectF(0, cam_h, w, strip_h)
-            painter.fillRect(strip_rect, strip_bg)
-            
-            # Divider line
-            painter.setPen(QPen(QColor(255, 255, 255, 20), 1))
-            painter.drawLine(0, int(cam_h), int(w), int(cam_h))
-            
-            # Strip Content Grid
-            # [State]       [Nozzle] [Bed]
-            painter.setPen(text_color)
-            
-            # Left: Status
-            status_text_x = 16
-            status_font = QFont(SYSTEM_FONT, 11, QFont.Weight.DemiBold)
-            painter.setFont(status_font)
-            painter.setPen(text_color)
-            
-            # Constraint the width based on where the stats block starts
-            avail_w = (w / 2) - status_text_x - 8
-            fm = QFontMetrics(status_font)
-            elided_state = fm.elidedText(printer_state.capitalize(), Qt.TextElideMode.ElideRight, int(avail_w))
-            
-            painter.drawText(QRectF(status_text_x, cam_h, avail_w, strip_h), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided_state)
-            
-            # Right: Stats
-            # Determine if we have extra space (width > 2 tiles)
-            use_long_names = button.span_x > 2
-            
-            stats_w = int(w * 0.6) # Give a bit more room to stats on all sizes
-            stats_x = int(w - stats_w - 16)
-            stats_rect = QRect(stats_x, int(cam_h), stats_w, strip_h)
-            
-            part_w = stats_w / 2.0
-            
-            lbl_noz = "NOZZLE" if use_long_names else "N"
-            lbl_bed = "BED" if use_long_names else "B"
-            
-            # calculate text width of labels to dynamic offset the values
-            font_lbl = QFont(SYSTEM_FONT, 9 if use_long_names else 10, QFont.Weight.Bold)
-            font_val = QFont(SYSTEM_FONT, 10, QFont.Weight.Medium)
-            
-            fm_lbl = QFontMetrics(font_lbl)
-            off_noz = fm_lbl.horizontalAdvance(f"{lbl_noz}  ")
-            off_bed = fm_lbl.horizontalAdvance(f"{lbl_bed}  ")
-            
-            # Nozzle
-            r_noz = QRectF(stats_x, cam_h, part_w, strip_h)
-            painter.setFont(font_lbl)
-            painter.setPen(dim_text_color)
-            painter.drawText(r_noz, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, f"{lbl_noz}")
-            r_noz.adjust(off_noz, 0, 0, 0) # adjust text left exactly by word size
-            painter.setPen(text_color)
-            painter.setFont(font_val)
-            painter.drawText(r_noz, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, nozzle_str)
-            # Bed
-            r_bed = QRectF(stats_x + part_w, cam_h, part_w, strip_h)
-            painter.setFont(font_lbl)
-            painter.setPen(dim_text_color)
-            painter.drawText(r_bed, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, f"{lbl_bed}")
-            r_bed.adjust(off_bed, 0, 0, 0)
-            painter.setPen(text_color)
-            painter.setFont(font_val)
-            painter.drawText(r_bed, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, bed_str)
+            # 2. Floating frosted pills at the bottom (state left, temps right)
+            from ui.utils.glass_effect import draw_frosted_pill
+
+            pill_h     = 28
+            pill_y     = h - pill_h - 12
+            pad_x      = 12
+            inter_pill = 8
+
+            is_offline = printer_state.lower() in ("off", "unavailable")
+
+            # --- Right pill: nozzle + bed (icons + values) — sized first; takes priority ---
+            icon_font = get_mdi_font(13)
+            val_font  = QFont(SYSTEM_FONT, 10, QFont.Weight.DemiBold)
+            fm_icon   = QFontMetrics(icon_font)
+            fm_val    = QFontMetrics(val_font)
+
+            noz_icon = get_icon('printer-3d-nozzle')
+            bed_icon = get_icon('square-medium')
+
+            gap = 6
+            sep = 12
+            temps_content_w = (
+                fm_icon.horizontalAdvance(noz_icon) + gap + fm_val.horizontalAdvance(nozzle_str)
+                + sep
+                + fm_icon.horizontalAdvance(bed_icon) + gap + fm_val.horizontalAdvance(bed_str)
+            )
+            temps_pill_w = 0 if is_offline else min(temps_content_w + 24, w - pad_x * 2)
+
+            # --- Left pill: state — only if there's room left after temps ---
+            state_label  = printer_state.capitalize() if printer_state else ""
+            state_font   = QFont(SYSTEM_FONT, 10, QFont.Weight.DemiBold)
+            fm_state     = QFontMetrics(state_font)
+            state_text_w = fm_state.horizontalAdvance(state_label.upper()) if state_label else 0
+            ideal_state_w = max(56, state_text_w + 24) if state_label else 0
+
+            remaining_w  = w - pad_x * 2 - (temps_pill_w + inter_pill if temps_pill_w else 0)
+            state_pill_w = min(ideal_state_w, remaining_w) if remaining_w >= 56 else 0
+
+            # Draw state pill
+            if state_pill_w:
+                state_rect = QRectF(pad_x, pill_y, state_pill_w, pill_h)
+                state_text_color = draw_frosted_pill(painter, state_rect, bg_pix, x_bg, y_bg, force_dark=True)
+                elided = fm_state.elidedText(state_label.upper(), Qt.TextElideMode.ElideRight, int(state_pill_w - 16))
+                painter.setFont(state_font)
+                painter.setPen(state_text_color)
+                painter.drawText(state_rect, Qt.AlignmentFlag.AlignCenter, elided)
+
+            # Draw temps pill
+            if temps_pill_w > 0:
+                temps_rect = QRectF(w - temps_pill_w - pad_x, pill_y, temps_pill_w, pill_h)
+                temps_text_color = draw_frosted_pill(painter, temps_rect, bg_pix, x_bg, y_bg, force_dark=True)
+
+                cx = temps_rect.x() + (temps_rect.width() - temps_content_w) / 2
+                painter.setPen(temps_text_color)
+
+                painter.setFont(icon_font)
+                nw = fm_icon.horizontalAdvance(noz_icon)
+                painter.drawText(QRectF(cx, pill_y, nw, pill_h),
+                                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, noz_icon)
+                cx += nw + gap
+
+                painter.setFont(val_font)
+                nvw = fm_val.horizontalAdvance(nozzle_str)
+                painter.drawText(QRectF(cx, pill_y, nvw, pill_h),
+                                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, nozzle_str)
+                cx += nvw + sep
+
+                painter.setFont(icon_font)
+                bw = fm_icon.horizontalAdvance(bed_icon)
+                painter.drawText(QRectF(cx, pill_y, bw, pill_h),
+                                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, bed_icon)
+                cx += bw + gap
+
+                painter.setFont(val_font)
+                bvw = fm_val.horizontalAdvance(bed_str)
+                painter.drawText(QRectF(cx, pill_y, bvw, pill_h),
+                                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, bed_str)
             
         elif is_wide:
             # === 2x1: Wide layout ===
@@ -1134,7 +1138,7 @@ class DashboardButtonPainter:
         painter.end()
 
     @staticmethod
-    def _draw_pill_label(painter, rect, label, background_pixmap=None, x_off=0, y_off=0, position='top-center', forced_bg_color=None, forced_text_color=None):
+    def _draw_pill_label(painter, rect, label, background_pixmap=None, x_off=0, y_off=0, position='top-center', forced_bg_color=None, forced_text_color=None, force_dark=False):
         """Draws a pill label (frosted glass by default, or solid if colors provided)."""
         if not label:
             return
@@ -1196,11 +1200,12 @@ class DashboardButtonPainter:
             from ui.utils.glass_effect import draw_frosted_pill
             
             text_color = draw_frosted_pill(
-                painter, 
-                pill_rect, 
-                background_pixmap=background_pixmap, 
-                bg_x_offset=x_off, 
-                bg_y_offset=y_off
+                painter,
+                pill_rect,
+                background_pixmap=background_pixmap,
+                bg_x_offset=x_off,
+                bg_y_offset=y_off,
+                force_dark=force_dark
             )
 
         # Draw Label Text (Final Step)
