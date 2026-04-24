@@ -63,15 +63,12 @@ class DashboardButtonStyleManager:
             """)
             return
         if button.config and button.config.get('type') == 'sun':
-            # Sun: same background as sensor (widget) buttons — #3C3C3C / white in light mode
-            is_light_theme = button.theme_manager and button.theme_manager.get_effective_theme() == 'light'
-            sensor_color = "#ffffff" if is_light_theme else "#3c3c3c"
             if is_gradient:
-                bg_style       = DashboardButtonStyleManager._get_gradient(sensor_color, 115)
-                bg_hover_style = DashboardButtonStyleManager._get_gradient(QColor(sensor_color).lighter(115).name(), 115)
+                bg_style       = DashboardButtonStyleManager._get_gradient(colors['base'], 115)
+                bg_hover_style = DashboardButtonStyleManager._get_gradient(colors['alternate_base'], 115)
             else:
-                bg_style       = f"background-color: {sensor_color};"
-                bg_hover_style = f"background-color: {QColor(sensor_color).lighter(115).name()};"
+                bg_style       = f"background-color: {colors['base']};"
+                bg_hover_style = f"background-color: {colors['alternate_base']};"
             button.setStyleSheet(f"""
                 DashboardButton {{
                     {bg_style}
@@ -100,7 +97,6 @@ class DashboardButtonStyleManager:
         if (button._state == "on" or button._state == "open" or button._state == "locked" or
             button._state == "mowing" or button._state == "returning" or button._state == "cleaning" or
             (button.config and button.config.get('type') == 'script') or
-            (button.config and button.config.get('type') == 'widget' and button.config.get('color')) or
             (button.config and button.config.get('type') == 'input_number' and button.config.get('color'))):
              # On - Use button's custom color if set, otherwise theme accent
              button_color = button.config.get('color', colors['accent'])

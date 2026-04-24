@@ -18,10 +18,49 @@ from core.temperature_utils import format_temperature, is_temperature_entity
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.widgets.dashboard_button_styles import DashboardButtonStyleManager
 import math
+import re
 import sys
 
 # Custom MIME type for drag and drop
 MIME_TYPE = "application/x-hatray-slot"
+
+_SENSOR_VALUE_RE = re.compile(r"([+-]?\d*\.?\d+)(.*)")
+
+
+def _parse_sensor_value(raw, precision=1):
+    """Split a sensor state string into (number, unit, formatted).
+
+    Returns (None, '', str(raw)) for non-numeric values.
+    """
+    if raw is None:
+        return None, '', '--'
+    text = str(raw)
+    match = _SENSOR_VALUE_RE.match(text)
+    if not match:
+        return None, '', text
+    try:
+        num = float(match.group(1))
+    except (ValueError, TypeError):
+        return None, '', text
+    unit = match.group(2)
+    if precision == 0:
+        formatted_num = f"{num:.0f}"
+    else:
+        formatted_num = f"{num:.{precision}f}"
+    return num, unit, f"{formatted_num}{unit}"
+
+
+def _compute_fraction(num, vmin, vmax):
+    """Return clamped (num - vmin)/(vmax - vmin) in [0, 1], or None if undefined."""
+    if num is None:
+        return None
+    try:
+        span = float(vmax) - float(vmin)
+    except (TypeError, ValueError):
+        return None
+    if span <= 0:
+        return None
+    return max(0.0, min(1.0, (float(num) - float(vmin)) / span))
 
 class DashboardButton(QFrame):
     """Button or widget in the grid."""
@@ -151,6 +190,9 @@ class DashboardButton(QFrame):
         self._anim_bg_anchors = None
         self._anim_bg_tiny = None  # Cached tiny QPixmap (reused every frame)
 
+        self._style_fp = None
+        self._content_fp = None
+
         self.setup_ui()
         self.update_style()
 
@@ -238,7 +280,8 @@ class DashboardButton(QFrame):
     def set_bounce_offset(self, val):
         self._bounce_offset = val
         m = 8
-        self.layout().setContentsMargins(m, m + int(val), m, m - int(val))
+        left = getattr(self, '_content_left_margin', m)
+        self.layout().setContentsMargins(left, m + int(val), m, m - int(val))
 
     bounce_offset = pyqtProperty(float, get_bounce_offset, set_bounce_offset)
     
@@ -314,10 +357,10 @@ class DashboardButton(QFrame):
         self._shadow_name.setOffset(0, 1)
         self.name_label.setGraphicsEffect(self._shadow_name)
         
-        layout.addStretch()
+        layout.addStretch(1)
         layout.addWidget(self.value_label)
         layout.addWidget(self.name_label)
-        layout.addStretch()
+        layout.addStretch(1)
         
 
         self.setFixedSize(90 * self.span_x + (8 * (self.span_x - 1)), 80 * self.span_y + (8 * (self.span_y - 1)))
@@ -327,15 +370,44 @@ class DashboardButton(QFrame):
     
     def update_content(self):
         """Update button content from config."""
+        fp = (
+            self.config.get('type'),
+            self.config.get('entity_id'),
+            self.config.get('label'),
+            self.config.get('display_style'),
+            self.config.get('icon'),
+            self.config.get('animated_bg'),
+            self._state,
+            str(self._value),
+            self._ha_icon,
+            self.span_x,
+            self.span_y,
+            self.temperature_unit_preference,
+        )
+        if fp == self._content_fp:
+            return
+        self._content_fp = fp
+
+        # Reset layout overrides from bar/gauge modes AFTER the fp check so that
+        # no-op calls don't tear down a layout that won't be re-applied. Each
+        # view updater is responsible for setting its own stretch/margin.
+        if getattr(self, '_bar_layout_active', False):
+            self._bar_layout_active = False
+            self.layout().setStretch(0, 1)
+            self.layout().setStretch(3, 1)
+        if getattr(self, '_content_left_margin', 8) != 8:
+            self._content_left_margin = 8
+            self.layout().setContentsMargins(8, 8, 8, 8)
+
         if not self.config:
             self._update_empty_view()
             return
-        
+
         # Forbidden slot
         if self.config.get('type') == 'forbidden':
             self._update_forbidden_view()
             return
-        
+
         btn_type = self.config.get('type', 'switch')
         
         # Dispatch to specific view updaters
@@ -431,6 +503,20 @@ class DashboardButton(QFrame):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._anim_bg_cache_key = None  # force regen on next paint
+
+        # Gauge 2x1+ reserves a left margin sized from the current width/height.
+        # Recompute on resize so the right-hand QLabels don't overlap the arc.
+        if (
+            self.config.get('type') == 'widget'
+            and self.config.get('display_style') == 'gauge'
+            and self.span_x >= 2
+        ):
+            arc_size = max(min(self.height() - 16, self.width() // 2 - 10), 32)
+            new_left = arc_size + 16
+            if new_left != getattr(self, '_content_left_margin', 8):
+                self._content_left_margin = new_left
+                m = self.layout().contentsMargins()
+                self.layout().setContentsMargins(new_left, m.top(), m.right(), m.bottom())
 
     # --- View Helpers ---
 
@@ -536,30 +622,78 @@ class DashboardButton(QFrame):
     def _update_widget_view(self):
         """Update generic sensor widget."""
         label = self.config.get('label', '')
-        self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
-        
-        val = self._value
-        if val is not None:
-            precision = self.config.get('precision', 1)
-            try:
-                import re
-                match = re.match(r"([+-]?\d*\.?\d+)(.*)", str(val))
-                if match:
-                    num_str, unit_str = match.groups()
-                    f_val = float(num_str)
-                    if precision == 0:
-                        formatted_num = f"{f_val:.0f}"
-                    else:
-                        formatted_num = f"{f_val:.{precision}f}"
-                    val = f"{formatted_num}{unit_str}"
-            except (ValueError, TypeError):
-                pass
-                    
-        self.value_label.setText(val or "--")
+        style = self.config.get('display_style', 'normal')
+        precision = self.config.get('precision', 1)
+
+        num, _unit, formatted = _parse_sensor_value(self._value, precision)
+        vmin = self.config.get('sensor_min', 0.0)
+        vmax = self.config.get('sensor_max', 100.0)
+        self._sensor_fraction = _compute_fraction(num, vmin, vmax)
+        self._sensor_text = formatted if num is not None else (str(self._value) if self._value is not None else '--')
+
+        self.value_label.setText(self._sensor_text)
         self.name_label.setText(label)
         self.setProperty("type", "widget")
-        self.value_label.show()
-        self.name_label.show()
+
+        gauge_tall_1col = (style == 'gauge' and self.span_x == 1 and self.span_y >= 2)
+        gauge_2xplus = (style == 'gauge' and self.span_x >= 2)
+        gauge_1x1 = (style == 'gauge' and not gauge_2xplus and not gauge_tall_1col)
+
+        # Default stretch config (top-stretch + labels + bottom-stretch centers content).
+        top_stretch, bottom_stretch = 1, 1
+
+        if style == 'bar':
+            # Painter draws the pill in the upper area; name_label sits at the bottom.
+            self.value_label.hide()
+            if label:
+                self.name_label.show()
+            else:
+                self.name_label.hide()
+            # Push name_label to the very bottom of the button.
+            top_stretch, bottom_stretch = 1, 0
+            self._bar_layout_active = True
+            self._content_left_margin = 8
+        elif gauge_1x1:
+            # Painter draws arc + value text; both labels hidden.
+            self.value_label.hide()
+            self.name_label.hide()
+            self._bar_layout_active = False
+            self._content_left_margin = 8
+        elif gauge_tall_1col:
+            # Painter draws arc top + value + label below; all labels hidden.
+            self.value_label.hide()
+            self.name_label.hide()
+            self._bar_layout_active = False
+            self._content_left_margin = 8
+        elif gauge_2xplus:
+            # Arc on the left; labels flow into the right half.
+            self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
+            self.value_label.show()
+            if label:
+                self.name_label.show()
+            else:
+                self.name_label.hide()
+            # Reserve square arc region on the left.
+            arc_size = max(min(self.height() - 16, self.width() // 2 - 10), 32)
+            self._content_left_margin = arc_size + 16
+        else:
+            # Normal text mode — preserve original behavior.
+            self.value_label.setFont(QFont(SYSTEM_FONT, 16, QFont.Weight.Bold))
+            self.value_label.show()
+            self.name_label.show()
+            self._bar_layout_active = False
+            self._content_left_margin = 8
+
+        # Apply stretch factors (layout: [stretch, value_label, name_label, stretch])
+        # Only call setStretch when the value actually changes to avoid unnecessary invalidations.
+        if self.layout().stretch(0) != top_stretch:
+            self.layout().setStretch(0, top_stretch)
+        if self.layout().stretch(3) != bottom_stretch:
+            self.layout().setStretch(3, bottom_stretch)
+
+        m_top, m_right, m_bottom = 8, 8, 8
+        self.layout().setContentsMargins(self._content_left_margin, m_top, m_right, m_bottom)
+        self.update()
 
     def _update_input_number_view(self):
         """Update view for input_number entities."""
@@ -1014,8 +1148,29 @@ class DashboardButton(QFrame):
     
     def update_style(self):
         """Update visual style based on state and theme."""
+        effective_theme = (
+            self.theme_manager.get_effective_theme()
+            if self.theme_manager else 'dark'
+        )
+        fp = (
+            self.config.get('type'),
+            self.config.get('color'),
+            bool(self.config.get('entity_id')),
+            self._state,
+            self._brightness,
+            self._show_dimming,
+            getattr(self, 'button_style', 'Gradient'),
+            effective_theme,
+        )
+        if fp == self._style_fp:
+            return
+        self._style_fp = fp
         DashboardButtonStyleManager.apply_style(self)
         self._update_label_shadows()
+
+    def invalidate_style_cache(self):
+        self._style_fp = None
+        self._content_fp = None
     
     def _update_label_shadows(self):
         """Adjust drop shadow intensity for light vs dark theme."""

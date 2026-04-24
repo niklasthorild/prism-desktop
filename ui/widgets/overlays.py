@@ -1505,22 +1505,16 @@ class RobotOverlay(BaseOverlay):
                 bar_color = QColor("#EA4335")
             bar_color.setAlpha(alpha)
 
-            pill_path = QPainterPath()
-            pill_path.addRoundedRect(pill_rect, pill_radius, pill_radius)
-
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(self._fg_color(int(alpha * 0.12)))
-            painter.drawPath(pill_path)
-
-            fill_w = avail_w * (self._battery_level / 100.0)
-            painter.setClipPath(pill_path)
-            painter.setBrush(bar_color)
-            painter.drawRect(QRectF(padding, pill_y, fill_w, pill_h))
-            painter.setClipping(False)
-
-            painter.setPen(self._fg_color(alpha))
-            painter.setFont(QFont(SYSTEM_FONT, 9, QFont.Weight.Bold))
-            painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, f"{int(self._battery_level)}%")
+            DashboardButtonPainter.draw_horizontal_bar_pill(
+                painter,
+                pill_rect,
+                fraction=self._battery_level / 100.0,
+                fill_color=bar_color,
+                track_color=self._fg_color(int(alpha * 0.12)),
+                text=f"{int(self._battery_level)}%",
+                font=QFont(SYSTEM_FONT, 9, QFont.Weight.Bold),
+                text_color=self._fg_color(alpha),
+            )
 
         painter.end()
 

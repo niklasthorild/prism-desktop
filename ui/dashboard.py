@@ -1458,6 +1458,8 @@ class Dashboard(QWidget):
         self.buttons_reordered.emit(source, target)
     
     def on_theme_changed(self, theme: str):
+        for button in self.buttons:
+            button.invalidate_style_cache()
         self.update_style()
     
 

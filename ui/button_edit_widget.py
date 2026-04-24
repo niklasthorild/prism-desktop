@@ -4,9 +4,9 @@ Embedded Button Editor Widget
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QFormLayout,
-    QSpinBox, QSizePolicy, QCompleter
+    QSpinBox, QDoubleSpinBox, QSizePolicy, QCompleter
 )
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QColor, QFont
@@ -115,7 +115,7 @@ class ButtonEditWidget(QWidget):
                 margin-top: 10px;
                 margin-bottom: 2px;
             }}
-            QLineEdit, QComboBox, QSpinBox {{
+            QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
                 background-color: {input_bg};
                 border: 1px solid {input_border};
                 border-radius: {Dimensions.RADIUS_MEDIUM};
@@ -129,7 +129,7 @@ class ButtonEditWidget(QWidget):
                 color: {colors['text']};
                 selection-background-color: {colors['accent']};
             }}
-            QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
                 border: 1px solid {colors['accent']};
                 background-color: {input_focus_bg};
             }}
@@ -277,6 +277,31 @@ class ButtonEditWidget(QWidget):
         self.precision_spin.setToolTip("Decimal places")
         self.precision_spin.setVisible(False)
         self.form.addRow("Decimals:", self.precision_spin)
+
+        # Display Style (Widget/Sensor Only) — Normal / Gauge / Bar
+        self.display_style_combo = QComboBox()
+        self.display_style_combo.addItems(["Normal", "Gauge", "Bar"])
+        self.display_style_combo.setToolTip("How the sensor value is rendered")
+        self.form.addRow("Display Style:", self.display_style_combo)
+        self.form.setRowVisible(self.display_style_combo, False)
+
+        self.sensor_min_spin = QDoubleSpinBox()
+        self.sensor_min_spin.setRange(-1_000_000_000.0, 1_000_000_000.0)
+        self.sensor_min_spin.setDecimals(2)
+        self.sensor_min_spin.setValue(0.0)
+        self.sensor_min_spin.setToolTip("Minimum value for the gauge/bar")
+        self.form.addRow("Min:", self.sensor_min_spin)
+        self.form.setRowVisible(self.sensor_min_spin, False)
+
+        self.sensor_max_spin = QDoubleSpinBox()
+        self.sensor_max_spin.setRange(-1_000_000_000.0, 1_000_000_000.0)
+        self.sensor_max_spin.setDecimals(2)
+        self.sensor_max_spin.setValue(100.0)
+        self.sensor_max_spin.setToolTip("Maximum value for the gauge/bar")
+        self.form.addRow("Max:", self.sensor_max_spin)
+        self.form.setRowVisible(self.sensor_max_spin, False)
+
+        self.display_style_combo.currentIndexChanged.connect(self._on_display_style_changed)
 
         # Sun — Show Remaining Daylight toggle
         self.sun_remaining_check = ToggleSwitch("Show solar timer")
@@ -668,6 +693,26 @@ class ButtonEditWidget(QWidget):
         self.friendly_toggle_btn.setText("Show IDs" if ButtonEditWidget._global_show_friendly_names else "Show Names")
         self.populate_entities()
 
+    def _current_type(self):
+        idx = self.type_combo.currentIndex()
+        return self.TYPE_DEFINITIONS[idx][1] if 0 <= idx < len(self.TYPE_DEFINITIONS) else 'switch'
+
+    def _on_display_style_changed(self, *_):
+        """Show Min/Max rows only when Gauge or Bar is selected AND type is sensor."""
+        is_sensor = self._current_type() == 'widget'
+        style_idx = self.display_style_combo.currentIndex()
+        needs_range = is_sensor and style_idx in (1, 2)
+        self.form.setRowVisible(self.sensor_min_spin, needs_range)
+        self.form.setRowVisible(self.sensor_max_spin, needs_range)
+
+        # Hide color palette for sensor with Normal display style
+        if is_sensor:
+            show_color = style_idx != 0
+            self.color_widget.setVisible(show_color)
+            self.color_label.setVisible(show_color)
+
+        self.size_changed.emit()
+
     def on_type_changed(self, index):
         current_type = self.TYPE_DEFINITIONS[index][1] if 0 <= index < len(self.TYPE_DEFINITIONS) else 'switch'
 
@@ -680,7 +725,9 @@ class ButtonEditWidget(QWidget):
         # Show precision for widget/sensor
         is_sensor = current_type == 'widget'
         self.precision_spin.setVisible(is_sensor)
-        
+        self.form.setRowVisible(self.display_style_combo, is_sensor)
+        self._on_display_style_changed()
+
         # Show camera-specific controls
         is_camera = current_type == 'camera'
         # mode combo removed
@@ -883,6 +930,13 @@ class ButtonEditWidget(QWidget):
 
         # Precision
         self.precision_spin.setValue(self.config.get('precision', 1))
+
+        # Display style (sensor)
+        style = self.config.get('display_style', 'normal')
+        idx = {'normal': 0, 'gauge': 1, 'bar': 2}.get(style, 0)
+        self.display_style_combo.setCurrentIndex(idx)
+        self.sensor_min_spin.setValue(float(self.config.get('sensor_min', 0.0)))
+        self.sensor_max_spin.setValue(float(self.config.get('sensor_max', 100.0)))
         
         # Camera settings (Removed - always stream)
         # camera_mode = self.config.get('camera_mode', 'picture')
@@ -955,12 +1009,15 @@ class ButtonEditWidget(QWidget):
         if new_config['type'] == 'media_player':
             new_config['show_album_art'] = self.show_album_art_check.isChecked()
             new_config['animated_bg'] = self.animated_bg_toggle.isChecked()
-            
+
         if new_config['type'] == 'switch':
              new_config['service'] = f"{new_config['entity_id'].split('.')[0]}.{self.service_combo.currentText()}"
         
         if new_config['type'] == 'widget':
             new_config['precision'] = self.precision_spin.value()
+            new_config['display_style'] = ['normal', 'gauge', 'bar'][self.display_style_combo.currentIndex()]
+            new_config['sensor_min'] = self.sensor_min_spin.value()
+            new_config['sensor_max'] = self.sensor_max_spin.value()
         
         if new_config['type'] == 'camera':
             new_config['camera_mode'] = 'stream'
