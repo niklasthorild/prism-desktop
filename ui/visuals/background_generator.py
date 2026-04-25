@@ -31,7 +31,8 @@ class BackgroundGenerator:
     _PHI = 1.6180339887
 
     @staticmethod
-    def generate(width: int, height: int, seed: int = None, palette: list[str] = None) -> QPixmap:
+    def generate(width: int, height: int, seed: int = None, palette: list[str] = None,
+                 light_mode: bool = False) -> QPixmap:
         """
         Generate a static background pixmap (single frozen frame of the light field).
 
@@ -44,13 +45,16 @@ class BackgroundGenerator:
         Returns:
             QPixmap: The generated background.
         """
-        layers = BackgroundGenerator.generate_layers(width, height, seed=seed, palette=palette)
+        layers = BackgroundGenerator.generate_layers(
+            width, height, seed=seed, palette=palette, light_mode=light_mode
+        )
         return BackgroundGenerator.render_frame(
             width, height, layers, frame=(layers["seed"] % 1000)
         )
 
     @staticmethod
-    def generate_layers(width: int, height: int, seed: int = None, palette: list[str] = None) -> dict:
+    def generate_layers(width: int, height: int, seed: int = None, palette: list[str] = None,
+                        light_mode: bool = False) -> dict:
         """
         Generate anchor definitions for a prismatic light-field animation.
 
@@ -83,7 +87,11 @@ class BackgroundGenerator:
         base_color = QColor(avg_r, avg_g, avg_b)
         # Darken dramatically: keep hue, reduce saturation + value
         h, s, v, _ = base_color.getHsv()
-        base_color = QColor.fromHsv(h, max(0, min(255, int(s * 0.30))), int(255 * 0.12))
+        if light_mode:
+            # Light glass: keep hue, very low saturation, very high value
+            base_color = QColor.fromHsv(h, max(0, min(255, int(s * 0.18))), int(255 * 0.97))
+        else:
+            base_color = QColor.fromHsv(h, max(0, min(255, int(s * 0.30))), int(255 * 0.12))
 
         # --- Anchor definitions ---
         num_anchors = rng.randint(4, 5)
@@ -92,7 +100,12 @@ class BackgroundGenerator:
 
         for i in range(num_anchors):
             color = QColor(q_palette[i % len(q_palette)])
-            color.setAlpha(rng.randint(90, 130))
+            if light_mode:
+                # Multiply blending darkens; keep colors saturated but
+                # use moderate alpha so the light canvas stays bright.
+                color.setAlpha(rng.randint(70, 110))
+            else:
+                color.setAlpha(rng.randint(90, 130))
 
             # Frequencies: multiply by golden-ratio powers for irrational ratios
             phi_pow = BackgroundGenerator._PHI ** i
@@ -113,6 +126,7 @@ class BackgroundGenerator:
             "anchors":    anchors,
             "base_color": base_color,
             "seed":       seed,
+            "light_mode": light_mode,
         }
 
     @staticmethod
@@ -149,7 +163,13 @@ class BackgroundGenerator:
         p = QPainter(tiny)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Plus)
+        light_mode = layers.get("light_mode", False)
+        if light_mode:
+            # SourceOver layers translucent tints onto the bright canvas —
+            # additive blending would wash everything to white here.
+            p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        else:
+            p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Plus)
 
         t = frame
         tw, th = tiny.width(), tiny.height()
@@ -182,9 +202,10 @@ class BackgroundGenerator:
             Qt.TransformationMode.SmoothTransformation,
         )
 
-        # Subtle frost overlay
-        frost = QPainter(result)
-        frost.fillRect(0, 0, width, height, QColor(255, 255, 255, 18))
-        frost.end()
+        # Subtle frost overlay (skip in light mode — it just washes out the tints)
+        if not light_mode:
+            frost = QPainter(result)
+            frost.fillRect(0, 0, width, height, QColor(255, 255, 255, 18))
+            frost.end()
 
         return result

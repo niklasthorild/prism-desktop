@@ -299,7 +299,11 @@ class DashboardButtonPainter:
                  painter.drawPixmap(0, 0, bg)
              else:
                  # --- Static background (original behaviour) ---
-                 bg_pixmap = BackgroundGenerator.generate(w, h, seed=seed)
+                 light_mode = bool(
+                     button.theme_manager
+                     and button.theme_manager.get_effective_theme() == 'light'
+                 )
+                 bg_pixmap = BackgroundGenerator.generate(w, h, seed=seed, light_mode=light_mode)
                  painter.drawPixmap(0, 0, bg_pixmap)
 
              # Gradient overlay (for text readability)

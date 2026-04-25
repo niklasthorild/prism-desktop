@@ -475,12 +475,15 @@ class DashboardButton(QFrame):
 
     def _ensure_anim_bg_layers(self, seed: int):
         """Regenerate animated background layers if cache is stale."""
-        cache_key = (seed, self.width(), self.height())
+        light_mode = bool(
+            self.theme_manager and self.theme_manager.get_effective_theme() == 'light'
+        )
+        cache_key = (seed, self.width(), self.height(), light_mode)
         if self._anim_bg_cache_key == cache_key and self._anim_bg_layers is not None:
             return
         from ui.visuals.background_generator import BackgroundGenerator
         self._anim_bg_layers = BackgroundGenerator.generate_layers(
-            self.width(), self.height(), seed=seed
+            self.width(), self.height(), seed=seed, light_mode=light_mode
         )
         self._anim_bg_anchors = self._anim_bg_layers["anchors"]
         # Cache a tiny pixmap for reuse each frame (avoids allocation per frame)

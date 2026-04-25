@@ -331,7 +331,6 @@ class SettingsWidget(QWidget):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["System", "Light", "Dark"])
         self.theme_combo.setMinimumWidth(120)
-        self.theme_combo.currentIndexChanged.connect(self.on_theme_preview)
         self.form.addRow("Theme:", self.theme_combo)
 
         from ui.widgets.effect_combobox import EffectComboBox
@@ -564,6 +563,8 @@ class SettingsWidget(QWidget):
         
         # Appearance
         theme_map = {0: 'system', 1: 'light', 2: 'dark'}
+        if self.theme_manager:
+            self.theme_manager.set_theme(theme_map.get(self.theme_combo.currentIndex(), 'system'))
         tray_position_map = {0: 'bottom', 1: 'top'}
         temperature_unit_map = {0: 'celsius', 1: 'fahrenheit'}
         self.config.setdefault('appearance', {})
@@ -617,11 +618,6 @@ class SettingsWidget(QWidget):
         asyncio.ensure_future(_check())
 
     # --- Logic ---
-
-    def on_theme_preview(self, index):
-        if self.theme_manager:
-            theme_map = {0: 'system', 1: 'light', 2: 'dark'}
-            self.theme_manager.set_theme(theme_map.get(index, 'system'))
 
     def on_border_effect_changed(self, text):
         self.border_effect_combo.set_effect(text)
