@@ -19,29 +19,33 @@ class UpdateCheckerThread(QThread):
     def _extract_version(self, text):
         """Extract first version-like pattern (e.g. 1.0, v1.2.3)."""
         if not text: return ""
-        # Look for digit.digit with optional extra parts
         match = re.search(r'v?(\d+(?:\.\d+)+)', text)
         return match.group(1) if match else text.strip()
+
+    def _parse_version(self, ver: str) -> tuple:
+        """Convert version string to comparable tuple, e.g. '1.5' == '1.5.0'."""
+        try:
+            return tuple(int(x) for x in ver.split('.'))
+        except ValueError:
+            return (0,)
 
     def run(self):
         try:
             response = requests.get(self.repo_url, timeout=5)
             response.raise_for_status()
-            
+
             data = response.json()
             tag_name = data.get("tag_name", "").strip()
             name = data.get("name", "").strip()
-            
+
             # Try to get meaningful version from tag, then name
             remote_ver = self._extract_version(tag_name)
             if not re.match(r'\d', remote_ver) and name:
-                 # If tag was generic (like "release"), try name
-                 remote_ver = self._extract_version(name)
-            
-            # Local version cleanup
+                remote_ver = self._extract_version(name)
+
             local_ver = self._extract_version(self.current_version)
-            
-            if local_ver != remote_ver and remote_ver:
+
+            if remote_ver and self._parse_version(remote_ver) > self._parse_version(local_ver):
                 self.update_available.emit(remote_ver)
             else:
                 self.up_to_date.emit()
