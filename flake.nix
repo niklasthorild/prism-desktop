@@ -17,7 +17,7 @@
     {
       packages = forAllSystems (pkgs:
         let
-          version = "1.4.4";
+          version = "1.5";
 
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
@@ -42,7 +42,7 @@
               owner = "lasselian";
               repo = "prism-desktop";
               rev = version;
-              hash = "sha256-jgiQveKhzvFnb52oy4AWj+C12S7yW9d9z1MHU9Fy7xM=";
+              hash = "sha256-G+RFAieoNOn1H98W3DCX5bYWQxBjJppufpI+Msc9kBQ=";
             };
 
             nativeBuildInputs = [
