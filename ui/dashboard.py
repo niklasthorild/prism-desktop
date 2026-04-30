@@ -401,12 +401,7 @@ class Dashboard(QWidget):
 
     def _dismiss_banner(self):
         """Close and delete the active floating banner."""
-        if not self._active_banner:
-            return
-        banner = self._active_banner
-        self._active_banner = None
-        banner.hide()
-        banner.deleteLater()
+        self._dismiss_banner_immediate()
 
     def _dismiss_banner_immediate(self):
         """Close active banner without animation (for replacement)."""
