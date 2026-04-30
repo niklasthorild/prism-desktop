@@ -250,16 +250,6 @@ class Dashboard(QWidget):
             event.ignore()
             return
 
-        # Decode source slot to get span
-        data = event.mimeData().data(MIME_TYPE)
-        stream = QDataStream(data, QIODevice.OpenModeFlag.ReadOnly)
-        source_slot = stream.readInt32()
-        
-        source_btn = next((b for b in self.buttons if b.slot == source_slot), None)
-        if not source_btn:
-            event.ignore()
-            return
-
         # Check target
         drop_pos = event.position().toPoint()
         target_slot = -1
