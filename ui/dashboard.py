@@ -50,6 +50,8 @@ from ui.visuals.dashboard_effects import (
     draw_liquid_mercury_border, capture_glass_background
 )
 
+QWIDGETSIZE_MAX = QWIDGETSIZE_MAX
+
 
 class FrozenScrollArea(QScrollArea):
     """ScrollArea that disables wheel scrolling."""
@@ -598,7 +600,7 @@ class Dashboard(QWidget):
              
         # Unlock size constraints for animation
         self.setMinimumSize(0, 0)
-        self.setMaximumSize(16777215, 16777215)
+        self.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         
         self._anim_target_height = target_h
         self.height_anim.setStartValue(self.height())
@@ -771,15 +773,15 @@ class Dashboard(QWidget):
 
             # Unlock size constraints for animation (Window)
             self.setMinimumSize(0, 0)
-            self.setMaximumSize(16777215, 16777215)
+            self.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         
             # Unlock Footer Buttons too (otherwise they block shrinking)
             if hasattr(self, 'btn_left'):
                 self.btn_left.setMinimumWidth(0)
-                self.btn_left.setMaximumWidth(16777215)
+                self.btn_left.setMaximumWidth(QWIDGETSIZE_MAX)
             if hasattr(self, 'btn_settings'):
                 self.btn_settings.setMinimumWidth(0)
-                self.btn_settings.setMaximumWidth(16777215)
+                self.btn_settings.setMaximumWidth(QWIDGETSIZE_MAX)
             
             self.width_anim.setStartValue(float(start_w))
             self.width_anim.setEndValue(float(new_width))
@@ -1746,7 +1748,7 @@ class Dashboard(QWidget):
         
         # MUST unlock the constraints so it can animate smoothly
         self.setMinimumHeight(0)
-        self.setMaximumHeight(16777215)
+        self.setMaximumHeight(QWIDGETSIZE_MAX)
         
         self._anim_start_height = self.height()
         self._anim_target_height = target_height
@@ -1834,7 +1836,7 @@ class Dashboard(QWidget):
         if target_view == 'settings':
             if self.settings_widget:
                 self.settings_widget.setMinimumSize(0, 0)
-                self.settings_widget.setMaximumSize(16777215, 16777215)
+                self.settings_widget.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
                 # Testing if this fixes linux clipping issue
                 self.settings_widget.setFixedHeight(self.settings_widget.get_content_height())
         
@@ -1899,7 +1901,7 @@ class Dashboard(QWidget):
 
         # 7. Unlock Window Constraints
         self.setMinimumSize(0, 0)
-        self.setMaximumSize(16777215, 16777215)
+        self.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         
         # 8. Switch Stack & Lock Content
         self._lock_view_sizes(view_name, target_height)
@@ -2018,7 +2020,7 @@ class Dashboard(QWidget):
         # Unlock grid size so it behaves normally (if we are in grid view)
         if self._current_view == 'grid':
             self.grid_widget.setMinimumSize(0, 0)
-            self.grid_widget.setMaximumSize(16777215, 16777215)
+            self.grid_widget.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         
             # FIX: Process pending row change if any (deferred from set_rows)
             pending = getattr(self, '_pending_rows', None)
