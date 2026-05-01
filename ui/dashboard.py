@@ -689,6 +689,7 @@ class Dashboard(QWidget):
         button.mower_requested.connect(self._on_mower_requested)
         button.vacuum_requested.connect(self._on_vacuum_requested)
         button.volume_requested.connect(self._on_volume_requested)
+        button.volume_scroll.connect(self.volume_scroll_requested.emit)
         button.media_command_requested.connect(self.media_command_requested.emit)
         button.resize_requested.connect(self.handle_button_resize)
         button.move_to_page_requested.connect(self._forward_move_to_page)
@@ -923,7 +924,6 @@ class Dashboard(QWidget):
             row = i // self._cols
             col = i % self._cols
             button = self._get_button_from_pool(i)
-            button.volume_scroll.connect(self.volume_scroll_requested.emit)
             self.grid.addWidget(button, row, col)
             self.buttons.append(button)
             
