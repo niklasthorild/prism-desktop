@@ -77,6 +77,7 @@ class Dashboard(QWidget):
     volume_scroll_requested = pyqtSignal(str, float)  # entity_id, new_volume (for scroll wheel)
     media_command_requested = pyqtSignal(int, str)    # slot, command
     weather_forecast_requested = pyqtSignal(int, QRect, dict) # slot, geometry, config
+    settings_saved = pyqtSignal(dict)
     
     def __init__(self, config: dict, theme_manager=None, input_manager=None, version: str = "Unknown", rows: int = 2, cols: int = DEFAULT_COLS, parent=None):
         super().__init__(parent)
@@ -1781,8 +1782,7 @@ class Dashboard(QWidget):
         # Transition
         self.transition_to('edit_button')
 
-    settings_saved = pyqtSignal(dict)
-    
+
     def _calculate_view_height(self, view_name: str) -> int:
         """Calculate target height for a given view."""
         if view_name == 'grid':
