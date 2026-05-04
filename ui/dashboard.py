@@ -50,7 +50,7 @@ from ui.visuals.dashboard_effects import (
     draw_liquid_mercury_border, capture_glass_background
 )
 
-QWIDGETSIZE_MAX = QWIDGETSIZE_MAX
+QWIDGETSIZE_MAX = 16777215
 
 
 class FrozenScrollArea(QScrollArea):
