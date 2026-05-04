@@ -2,7 +2,7 @@ import math
 from datetime import datetime, timezone, timedelta
 from PyQt6.QtCore import Qt, QRect, QRectF, QPointF, QPropertyAnimation
 from PyQt6.QtGui import (
-    QColor, QFont, QFontMetrics, QPainter, QPainterPath, QColor, QPen, QBrush,
+    QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QBrush,
     QLinearGradient, QConicalGradient, QRadialGradient
 )
 from PyQt6.QtWidgets import QApplication
@@ -10,6 +10,8 @@ from ui.icons import get_icon, get_mdi_font, Icons
 from core.utils import SYSTEM_FONT
 from core.temperature_utils import format_temperature
 from ui.visuals.background_generator import BackgroundGenerator
+
+_DEFAULT_SENSOR_COLOR = '#3c3c3c'
 
 class DashboardButtonPainter:
     """Handles custom painting for DashboardButton."""
@@ -488,7 +490,7 @@ class DashboardButtonPainter:
         # User-picked color (from edit menu) drives the gauge/bar fill; fall back to theme accent.
         custom_color = button.config.get('color')
         # "#3c3c3c" is the sentinel for "default sensor color" — treat as unset.
-        if custom_color and custom_color.lower() != '#3c3c3c':
+        if custom_color and custom_color.lower() != _DEFAULT_SENSOR_COLOR:
             fill_color = QColor(custom_color)
         else:
             fill_color = QColor(accent_hex)
