@@ -18,6 +18,7 @@ from ui.widgets.toggle_switch import ToggleSwitch
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
+from core.localization_manager import t, current_language, supported_languages
 
 from core.build_info import APP_VERSION, get_display_version
 from core.worker_threads import ConnectionTestThread
@@ -266,16 +267,16 @@ class SettingsWidget(QWidget):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 10)
         
-        self.back_btn = QPushButton("← Back")
+        self.back_btn = QPushButton(t("settings.back_btn"))
         self.back_btn.setMinimumWidth(70)
         self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_btn.clicked.connect(self.back_requested.emit)
-        
-        title = QLabel("Settings")
+
+        title = QLabel(t("settings.title"))
         title.setObjectName("headerTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        self.save_btn = QPushButton("Save")
+
+        self.save_btn = QPushButton(t("settings.save_btn"))
         self.save_btn.setObjectName("primaryBtn")
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.setMinimumWidth(70)
@@ -300,84 +301,108 @@ class SettingsWidget(QWidget):
         self._form_sections = []  # Track all section forms for label-width sync
         
         # --- Home Assistant Section ---
-        self._add_section_header("HOME ASSISTANT")
-        
+        self._add_section_header(t("settings.section.home_assistant"))
+
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("http://homeassistant.local:8123")
-        self.form.addRow("URL:", self.url_input)
+        self.url_input.setPlaceholderText(t("settings.ha.url_placeholder"))
+        self.form.addRow(t("settings.ha.url_label"), self.url_input)
 
         self.token_input = QLineEdit()
         self.token_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.token_input.setPlaceholderText("Long-Lived Access Token")
-        self.form.addRow("Token:", self.token_input)
+        self.token_input.setPlaceholderText(t("settings.ha.token_placeholder"))
+        self.form.addRow(t("settings.ha.token_label"), self.token_input)
 
         # Full-width Test Connection button
-        self.test_btn = QPushButton("Test Connection")
+        self.test_btn = QPushButton(t("settings.ha.test_btn"))
         self.test_btn.clicked.connect(self.test_connection)
         self.form.addRow("", self.test_btn)
 
         # Location tracking (Windows + Linux)
         if sys.platform in ('win32', 'linux'):
-            self.location_check = ToggleSwitch("Send location to Home Assistant")
-            self.location_check.setToolTip(
-                "Periodically reports this device's location via the Mobile App integration"
-            )
+            self.location_check = ToggleSwitch(t("settings.ha.location_toggle"))
+            self.location_check.setToolTip(t("settings.ha.location_tooltip"))
             self.form.addRow("", self.location_check)
 
         # --- Appearance Section ---
-        self._add_section_header("APPEARANCE")
+        self._add_section_header(t("settings.section.appearance"))
 
         # Theme
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["System", "Light", "Dark"])
+        self.theme_combo.addItems([
+            t("settings.appearance.theme_system"),
+            t("settings.appearance.theme_light"),
+            t("settings.appearance.theme_dark"),
+        ])
         self.theme_combo.setMinimumWidth(120)
-        self.form.addRow("Theme:", self.theme_combo)
+        self.form.addRow(t("settings.appearance.theme_label"), self.theme_combo)
 
         from ui.widgets.effect_combobox import EffectComboBox
         self.border_effect_combo = EffectComboBox()
         self.border_effect_combo.addItems(["Rainbow", "Aurora Borealis", "Prism Shard", "Liquid Mercury", "None"])
         self.border_effect_combo.setMinimumWidth(120)
         self.border_effect_combo.currentTextChanged.connect(self.on_border_effect_changed)
-        self.form.addRow("Border Effect:", self.border_effect_combo)
+        self.form.addRow(t("settings.appearance.border_label"), self.border_effect_combo)
 
         self.button_style_combo = QComboBox()
-        self.button_style_combo.addItems(["Gradient", "Flat"])
+        self.button_style_combo.addItems([
+            t("settings.appearance.button_style_gradient"),
+            t("settings.appearance.button_style_flat"),
+        ])
         self.button_style_combo.setMinimumWidth(120)
-        self.form.addRow("Button Style:", self.button_style_combo)
+        self.form.addRow(t("settings.appearance.button_style_label"), self.button_style_combo)
 
         self.tray_position_combo = QComboBox()
-        self.tray_position_combo.addItems(["Bottom Panel", "Top Panel"])
+        self.tray_position_combo.addItems([
+            t("settings.appearance.tray_bottom"),
+            t("settings.appearance.tray_top"),
+        ])
         self.tray_position_combo.setMinimumWidth(120)
-        self.form.addRow("Tray Position:", self.tray_position_combo)
+        self.form.addRow(t("settings.appearance.tray_label"), self.tray_position_combo)
 
         self.temperature_unit_combo = QComboBox()
-        self.temperature_unit_combo.addItems(["Celsius", "Fahrenheit"])
+        self.temperature_unit_combo.addItems([
+            t("settings.appearance.temp_celsius"),
+            t("settings.appearance.temp_fahrenheit"),
+        ])
         self.temperature_unit_combo.setMinimumWidth(120)
-        self.form.addRow("Temperature Unit:", self.temperature_unit_combo)
+        self.form.addRow(t("settings.appearance.temp_label"), self.temperature_unit_combo)
 
         self.pages_combo = QComboBox()
         self.pages_combo.addItems(["1", "2", "3", "4"])
         self.pages_combo.setMinimumWidth(120)
-        self.form.addRow("Dashboard Pages:", self.pages_combo)
+        self.form.addRow(t("settings.appearance.pages_label"), self.pages_combo)
 
-        # Toggles side by side
-        self.show_dimming_check = ToggleSwitch("Show dimming")
-        self.show_dimming_check.setToolTip("Fade button color based on brightness level")
+        # Language selector
+        self._language_codes = list(supported_languages().keys())
+        self.language_combo = QComboBox()
+        self.language_combo.addItems(list(supported_languages().values()))
+        self.language_combo.setMinimumWidth(120)
+        self.form.addRow(t("settings.appearance.language_label"), self.language_combo)
 
-        self.glass_ui_check = ToggleSwitch("Glass UI (EXPERIMENTAL)")
-        self.glass_ui_check.setToolTip("Use a translucent glass background for the window")
+        self._language_restart_note = QLabel(t("settings.appearance.language_restart_note"))
+        self._language_restart_note.setStyleSheet("color: #aaa; font-size: 11px;")
+        self._language_restart_note.hide()
+        self.form.addRow("", self._language_restart_note)
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+
+        # Toggles
+        self.show_dimming_check = ToggleSwitch(t("settings.appearance.dimming_toggle"))
+        self.show_dimming_check.setToolTip(t("settings.appearance.dimming_tooltip"))
+
+        self.glass_ui_check = ToggleSwitch(t("settings.appearance.glass_toggle"))
+        self.glass_ui_check.setToolTip(t("settings.appearance.glass_tooltip"))
         if sys.platform.startswith('linux'):
             self.glass_ui_check.setVisible(False)
 
-        self.pin_window_check = ToggleSwitch("Pin window")
-        self.pin_window_check.setToolTip("Keep the window open when clicking outside it")
+        self.pin_window_check = ToggleSwitch(t("settings.appearance.pin_toggle"))
+        self.pin_window_check.setToolTip(t("settings.appearance.pin_tooltip"))
 
         self.form.addRow("", self.show_dimming_check)
         self.form.addRow("", self.glass_ui_check)
         self.form.addRow("", self.pin_window_check)
         
         # --- Shortcut Section ---
-        self._add_section_header("SHORTCUT")
+        self._add_section_header(t("settings.section.shortcut"))
 
         shortcut_container = QWidget()
         shortcut_container_layout = QVBoxLayout(shortcut_container)
@@ -388,7 +413,7 @@ class SettingsWidget(QWidget):
         shortcut_row.setContentsMargins(0, 0, 0, 0)
         self.shortcut_display = QLineEdit()
         self.shortcut_display.setReadOnly(True)
-        self.shortcut_display.setPlaceholderText("None")
+        self.shortcut_display.setPlaceholderText(t("settings.shortcut.placeholder"))
         
         self.record_btn = QPushButton()
         self.record_btn.setObjectName("recordBtn")
@@ -426,23 +451,23 @@ class SettingsWidget(QWidget):
         self.shortcut_hint.hide()
         shortcut_aux_layout.addWidget(self.shortcut_hint)
 
-        self.kde_shortcuts_btn = QPushButton("Open KDE Shortcuts")
+        self.kde_shortcuts_btn = QPushButton(t("settings.shortcut.kde_btn"))
         self.kde_shortcuts_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.kde_shortcuts_btn.clicked.connect(self.open_kde_shortcuts)
         self.kde_shortcuts_btn.hide()
         shortcut_aux_layout.addWidget(self.kde_shortcuts_btn, 0, Qt.AlignmentFlag.AlignLeft)
         self.shortcut_aux.hide()
         shortcut_container_layout.addWidget(self.shortcut_aux)
-        self.form.addRow("App Toggle:", shortcut_container)
+        self.form.addRow(t("settings.shortcut.label"), shortcut_container)
         
         # --- Support Section ---
-        self._add_section_header("SUPPORT")
+        self._add_section_header(t("settings.section.support"))
 
         # Update Check
         update_row = QHBoxLayout()
         update_row.setContentsMargins(0, 0, 0, 0)
 
-        self.update_btn = QPushButton("Check for Updates")
+        self.update_btn = QPushButton(t("settings.support.update_btn"))
         self.update_btn.setObjectName("updateBtn")
         self.update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.update_btn.clicked.connect(self.check_for_updates)
@@ -458,7 +483,7 @@ class SettingsWidget(QWidget):
         update_row.addWidget(self.update_label)
         update_row.addStretch()
 
-        self.form.addRow("Update:", update_row)
+        self.form.addRow(t("settings.support.update_label"), update_row)
 
 
         layout.addStretch()
@@ -545,6 +570,12 @@ class SettingsWidget(QWidget):
         pages = app.get('pages', 3)
         self.pages_combo.setCurrentIndex(max(0, min(pages - 1, self.pages_combo.count() - 1)))
 
+        saved_lang = app.get('language', current_language())
+        lang_idx = self._language_codes.index(saved_lang) if saved_lang in self._language_codes else 0
+        self.language_combo.blockSignals(True)
+        self.language_combo.setCurrentIndex(lang_idx)
+        self.language_combo.blockSignals(False)
+
         if sys.platform in ('win32', 'linux'):
             self.location_check.setChecked(
                 self.config.get('mobile_app', {}).get('location_enabled', False)
@@ -572,6 +603,9 @@ class SettingsWidget(QWidget):
             self.theme_manager.set_theme(theme_map.get(self.theme_combo.currentIndex(), 'system'))
         tray_position_map = {0: 'bottom', 1: 'top'}
         temperature_unit_map = {0: 'celsius', 1: 'fahrenheit'}
+        old_language = self.config.get('appearance', {}).get('language', 'en')
+        new_language = self._language_codes[self.language_combo.currentIndex()]
+
         self.config.setdefault('appearance', {})
         self.config['appearance'].update({
             'theme': theme_map.get(self.theme_combo.currentIndex(), 'system'),
@@ -583,6 +617,7 @@ class SettingsWidget(QWidget):
             'glass_ui': self.glass_ui_check.isChecked(),
             'pin_window': self.pin_window_check.isChecked(),
             'pages': self.pages_combo.currentIndex() + 1,
+            'language': new_language,
         })
 
         if sys.platform in ('win32', 'linux'):
@@ -598,6 +633,11 @@ class SettingsWidget(QWidget):
         if 'shortcut' not in self.config: self.config['shortcut'] = {}
         
         self.settings_saved.emit(self.config)
+
+        if new_language != old_language:
+            from ui.notifications import notify_language_restart
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(300, lambda: notify_language_restart(self.window()))
 
     # --- Linux location helpers ---
 
@@ -625,6 +665,9 @@ class SettingsWidget(QWidget):
 
     # --- Logic ---
 
+    def _on_language_changed(self, index: int):
+        self._language_restart_note.show()
+
     def on_border_effect_changed(self, text):
         self.border_effect_combo.set_effect(text)
 
@@ -646,8 +689,8 @@ class SettingsWidget(QWidget):
             
         if checked:
             # Stop State (Square)
-            self.record_icon.setStyleSheet("background-color: white; border-radius: 2px;") 
-            self.shortcut_display.setText("Press keys...")
+            self.record_icon.setStyleSheet("background-color: white; border-radius: 2px;")
+            self.shortcut_display.setText(t("settings.shortcut.recording"))
             self.input_manager.start_recording()
         else:
             # Record State (Circle)
@@ -655,7 +698,7 @@ class SettingsWidget(QWidget):
             self.input_manager.restore_shortcut()
             # Restore previous text if cancelled
             sc = self.config.get('shortcut', {})
-            if self.shortcut_display.text() == "Press keys...":
+            if self.shortcut_display.text() == t("settings.shortcut.recording"):
                 self.shortcut_display.setText(sc.get('value', ''))
 
     @pyqtSlot(dict)
@@ -689,12 +732,9 @@ class SettingsWidget(QWidget):
             self.record_btn.hide()
             self.shortcut_display.setEnabled(False)
             self.shortcut_display.setProperty("locked", True)
-            self.shortcut_display.setText("Disabled")
+            self.shortcut_display.setText(t("settings.shortcut.disabled"))
             self.shortcut_display.setToolTip("")
-            self.shortcut_hint.setText(
-                "On KDE Wayland, the app-toggle shortcut is managed by KDE. "
-                "Change it in KDE Shortcuts instead of recording it here."
-            )
+            self.shortcut_hint.setText(t("settings.shortcut.kde_hint"))
             self.shortcut_aux.show()
             self.shortcut_hint.show()
             self.kde_shortcuts_btn.show()
@@ -704,13 +744,9 @@ class SettingsWidget(QWidget):
             self.record_btn.hide()
             self.shortcut_display.setEnabled(False)
             self.shortcut_display.setProperty("locked", True)
-            self.shortcut_display.setText("Disabled")
+            self.shortcut_display.setText(t("settings.shortcut.disabled"))
             self.shortcut_display.setToolTip("")
-            self.shortcut_hint.setText(
-                "Global app-toggle shortcuts are not currently supported on this Wayland desktop. "
-                "Create a custom keybind that runs 'prism-desktop --toggle' instead. "
-                "The in-window entity shortcuts still work while Prism is focused."
-            )
+            self.shortcut_hint.setText(t("settings.shortcut.wayland_hint"))
             self.shortcut_aux.show()
             self.shortcut_hint.show()
             self.kde_shortcuts_btn.hide()
@@ -754,9 +790,8 @@ class SettingsWidget(QWidget):
         token = self.token_input.text().strip()
 
         if not url or not token:
-            mdi_family = get_mdi_font().family()
-            icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{Icons.LAN_DISCONNECT}</span>'
-            self.window().show_toast(f"{icon_html}&nbsp;&nbsp;Missing URL or token — fill in both fields first.")
+            from ui.notifications import notify_missing_credentials
+            notify_missing_credentials(self.window())
             return
 
         self.test_btn.setEnabled(False)
@@ -772,10 +807,8 @@ class SettingsWidget(QWidget):
     @pyqtSlot(bool, str)
     def on_test_complete(self, success, message):
         self.test_btn.setEnabled(True)
-        mdi_char = Icons.LAN_CONNECT if success else Icons.LAN_DISCONNECT
-        mdi_family = get_mdi_font().family()
-        icon_html = f'<span style="font-family: \'{mdi_family}\'; font-size: 16px;">{mdi_char}</span>'
-        self.window().show_toast(f"{icon_html}&nbsp;&nbsp;{message}")
+        from ui.notifications import notify_connection_test_result
+        notify_connection_test_result(self.window(), success, message)
 
     _VERSION_STYLE = 'style="color: #aaa; font-size: 11px; text-decoration: none;"'
     _HASH_STYLE = 'style="color: #FFC90E; font-size: 11px; text-decoration: none;"'
@@ -818,7 +851,7 @@ class SettingsWidget(QWidget):
             self.update_label.setText(
                 f'<span style="color: #aaa; font-size: 11px;"><a href="collapse" {self._VERSION_STYLE}>v{APP_VERSION}</a>'
                 f' <a href="copy" {self._VERSION_STYLE}>({commit})</a>'
-                f' - copied to clipboard</span>'
+                f' - {t("settings.support.copied")}</span>'
             )
             QTimer.singleShot(3000, self._set_version_label_expanded)
 
@@ -826,7 +859,7 @@ class SettingsWidget(QWidget):
     def check_for_updates(self):
         """Start update check."""
         self.update_btn.setEnabled(False)
-        self.update_label.setText("Checking...")
+        self.update_label.setText(t("settings.support.checking"))
         
         self._update_thread = UpdateCheckerThread(self.current_version)
         self._update_thread.update_available.connect(self.on_update_available)
@@ -837,24 +870,24 @@ class SettingsWidget(QWidget):
     @pyqtSlot(str)
     def on_update_available(self, tag):
         self.update_btn.setEnabled(True)
-        self.update_label.setText(f"Update available: {tag}")
+        self.update_label.setText(t("settings.support.update_available", tag=tag))
         self.update_label.setStyleSheet("color: #FF8C00; font-weight: bold; font-size: 11px;")
 
-        self.update_btn.setText("Download Update")
+        self.update_btn.setText(t("settings.support.download_btn"))
         self.update_btn.disconnect()
         self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")))
 
     @pyqtSlot()
     def on_up_to_date(self):
         self.update_btn.setEnabled(True)
-        self.update_label.setText("App is up to date")
+        self.update_label.setText(t("settings.support.up_to_date"))
         self.update_label.setStyleSheet("color: #34A853; font-size: 11px;")
         QTimer.singleShot(3000, self._set_version_label_collapsed)
         
     @pyqtSlot(str)
     def on_update_error(self, error):
         self.update_btn.setEnabled(True)
-        self.update_label.setText("Check failed")
+        self.update_label.setText(t("settings.support.check_failed"))
         self.update_label.setToolTip(error)
 
     def _cleanup_threads(self):

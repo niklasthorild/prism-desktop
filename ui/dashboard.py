@@ -28,6 +28,7 @@ from ui.icons import get_icon, get_mdi_font
 
 # Cross-platform system font
 from core.utils import SYSTEM_FONT
+from core.localization_manager import t
 from ui.widgets.dashboard_button import DashboardButton, MIME_TYPE
 from ui.widgets.footer_button import FooterButton
 from ui.widgets.page_indicator_button import PageIndicatorButton
@@ -943,7 +944,7 @@ class Dashboard(QWidget):
         btn_height = FOOTER_HEIGHT
 
         # Left Button (Home Assistant)
-        self.btn_left = FooterButton("  HOME ASSISTANT") # Add space for spacing
+        self.btn_left = FooterButton(t("dashboard.footer.home_assistant"))
         self.btn_left.setFixedHeight(btn_height)
         self.btn_left.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.btn_left.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -985,7 +986,7 @@ class Dashboard(QWidget):
         footer_layout.addWidget(self.btn_page_indicator)
 
         # Right Button (Settings) - now calls show_settings directly
-        self.btn_settings = FooterButton("SETTINGS")
+        self.btn_settings = FooterButton(t("dashboard.footer.settings"))
         self.btn_settings.setFixedHeight(btn_height)
         self.btn_settings.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.btn_settings.setCursor(Qt.CursorShape.PointingHandCursor)

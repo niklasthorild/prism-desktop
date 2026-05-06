@@ -11,6 +11,7 @@ from typing import Callable, Optional
 
 from PIL import Image, ImageDraw
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
+from core.localization_manager import t
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import QObject, Qt, pyqtSignal, QRect
 
@@ -123,7 +124,7 @@ class TrayManager:
         qicon = self._to_qicon(self.create_icon_image())
 
         self._tray = QSystemTrayIcon(qicon)
-        self._tray.setToolTip("Prism Desktop - Home Assistant")
+        self._tray.setToolTip(t("tray.tooltip"))
 
         # Context menu (shown on right-click).
         # WA_TranslucentBackground lets the rounded corners actually clip;
@@ -132,10 +133,10 @@ class TrayManager:
         self._menu = QMenu()
         self._menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._menu.setStyleSheet(self._menu_stylesheet())
-        show_action = self._menu.addAction("Show Dashboard")
+        show_action = self._menu.addAction(t("tray.show_dashboard"))
         show_action.triggered.connect(self.signals.left_clicked)
         self._menu.addSeparator()
-        quit_action = self._menu.addAction("Quit")
+        quit_action = self._menu.addAction(t("tray.quit"))
         quit_action.triggered.connect(self.signals.quit_clicked)
 
         self._tray.setContextMenu(self._menu)

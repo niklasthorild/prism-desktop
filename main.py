@@ -66,6 +66,7 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from core.temperature_utils import normalize_temperature_unit
 from core.build_info import APP_VERSION, get_display_version
+from core.localization_manager import init_localization
 
 DISPLAY_VERSION = get_display_version()
 
@@ -1048,6 +1049,18 @@ class PrismDesktopApp(QObject):
         )
 
 
+def _read_language_from_config() -> str:
+    try:
+        from core.utils import get_config_path
+        cfg_path = get_config_path("config.json")
+        if cfg_path.exists():
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                return json.load(f).get("appearance", {}).get("language", "en")
+    except Exception:
+        pass
+    return "en"
+
+
 if __name__ == '__main__':
     print(r"""
   ____       _
@@ -1072,5 +1085,6 @@ if __name__ == '__main__':
     
     with loop:
         load_mdi_font()
+        init_localization(_read_language_from_config())
         controller = PrismDesktopApp()
         loop.run_forever()

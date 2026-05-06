@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QSizePoli
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, pyqtProperty, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPoint
 from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath, QPen
 from core.utils import SYSTEM_FONT
+from core.localization_manager import t
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.constants import BANNER_HEIGHT, BANNER_VERTICAL_MARGIN, GRID_MARGIN_LEFT, GRID_MARGIN_RIGHT, ROOT_MARGIN
 from ui.visuals.dashboard_effects import (
@@ -215,7 +216,7 @@ class NotificationBanner(QWidget):
                 f"  font-family: '{SYSTEM_FONT}'; font-size: 11px; font-weight: 500; }}"
                 f"QPushButton:hover {{ background: {yes_bg_hover}; }}"
             )
-            self.btn_yes = QPushButton("Yes")
+            self.btn_yes = QPushButton(t("notification_banner.yes"))
             self.btn_yes.setFixedHeight(btn_h)
             self.btn_yes.setMinimumWidth(54)
             self.btn_yes.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -229,7 +230,7 @@ class NotificationBanner(QWidget):
                 f"  font-family: '{SYSTEM_FONT}'; font-size: 11px; font-weight: 500; }}"
                 f"QPushButton:hover {{ background: {no_bg_hover}; }}"
             )
-            self.btn_no = _CountdownButton("No", is_light=glass_is_light, corner_radius=6)
+            self.btn_no = _CountdownButton(t("notification_banner.no"), is_light=glass_is_light, corner_radius=6)
             self.btn_no.setFixedHeight(btn_h)
             self.btn_no.setMinimumWidth(54)
             self.btn_no.setCursor(Qt.CursorShape.PointingHandCursor)

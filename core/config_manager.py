@@ -65,6 +65,7 @@ class ConfigManager:
             "home_assistant": {"url": "", "token": ""},
             "appearance": {
                 "theme": "system",
+                "language": "en",
                 "rows": 2,
                 "button_style": "Gradient",
                 "border_effect": "Liquid Mercury",

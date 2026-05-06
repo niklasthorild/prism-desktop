@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, pyqtProperty, QPropertyAnimat
 from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath, QPen
 
 from core.utils import SYSTEM_FONT
+from core.localization_manager import t
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
 from ui.constants import BANNER_VERTICAL_MARGIN, GRID_MARGIN_LEFT, GRID_MARGIN_RIGHT, ROOT_MARGIN
 from ui.visuals.dashboard_effects import (
@@ -17,34 +18,15 @@ from ui.visuals.dashboard_effects import (
 
 GAP = 5  # px gap between dashboard edge and banner
 
-_STEPS = [
-    (
-        "Welcome to Prism Desktop",
-        "Your Home Assistant control panel lives in the system tray. Click the tray icon "
-        "\u2014 or press Ctrl+Alt+H \u2014 to show or hide this panel. "
-        "You can change the shortcut anytime in Settings.",
-    ),
-    (
-        "Moving & Resizing",
-        "Drag the background to reposition the panel anywhere on your screen. "
-        "Drag the left edge to change the number of columns, or the top/bottom edge to change rows.",
-    ),
-    (
-        "Multiple Pages",
-        "Scroll the mouse wheel over the panel to switch pages. "
-        "The dots at the bottom show which page you\u2019re on \u2014 you can add more pages in Settings \u2192 Appearance.",
-    ),
-    (
-        "Connecting to Home Assistant",
-        "Open Settings (tray icon \u2192 Settings) and enter your Home Assistant URL and a Long-Lived Access Token. "
-        "Generate one in your HA profile under Security \u2192 Long-Lived Access Tokens \u2192 Create Token.",
-    ),
-    (
-        "You\u2019re All Set",
-        "Press + on any empty slot to add your first entity. "
-        "Right-click any button to edit, duplicate, or remove it. Enjoy Prism Desktop!",
-    ),
-]
+
+def _get_steps():
+    return [
+        (t("welcome.step_1.title"), t("welcome.step_1.body")),
+        (t("welcome.step_2.title"), t("welcome.step_2.body")),
+        (t("welcome.step_3.title"), t("welcome.step_3.body")),
+        (t("welcome.step_4.title"), t("welcome.step_4.body")),
+        (t("welcome.step_5.title"), t("welcome.step_5.body")),
+    ]
 
 
 class _DotsWidget(QWidget):
@@ -105,7 +87,7 @@ class WelcomeBanner(QWidget):
         self._glass_pixmap = None
         self._is_light = glass_is_light
         self._step = 0
-        self._steps = _STEPS
+        self._steps = _get_steps()
         self._target_y = 0
         self._banner_x = 0
         self._above = True
@@ -169,7 +151,7 @@ class WelcomeBanner(QWidget):
         layout.setSpacing(5)
 
         # Title
-        self.lbl_title = QLabel(_STEPS[0][0])
+        self.lbl_title = QLabel(self._steps[0][0])
         title_font = QFont(SYSTEM_FONT, 11)
         title_font.setWeight(QFont.Weight.DemiBold)
         self.lbl_title.setFont(title_font)
@@ -177,7 +159,7 @@ class WelcomeBanner(QWidget):
         layout.addWidget(self.lbl_title)
 
         # Body
-        self.lbl_body = QLabel(_STEPS[0][1])
+        self.lbl_body = QLabel(self._steps[0][1])
         self.lbl_body.setFont(QFont(SYSTEM_FONT, 10))
         self.lbl_body.setStyleSheet(f"color: {text_color}; background: transparent;")
         self.lbl_body.setWordWrap(True)
@@ -191,17 +173,17 @@ class WelcomeBanner(QWidget):
 
         btn_h = 22
 
-        self.btn_skip = QPushButton("Skip")
+        self.btn_skip = QPushButton(t("welcome.btn_skip"))
         self.btn_skip.setFixedHeight(btn_h)
         self.btn_skip.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_skip.setStyleSheet(muted_style)
         self.btn_skip.clicked.connect(self._on_skip)
         nav_layout.addWidget(self.btn_skip)
 
-        self.dot_widget = _DotsWidget(len(_STEPS), is_light=glass_is_light)
+        self.dot_widget = _DotsWidget(len(self._steps), is_light=glass_is_light)
         nav_layout.addWidget(self.dot_widget, 1)
 
-        self.btn_next = QPushButton("Next")
+        self.btn_next = QPushButton(t("welcome.btn_next"))
         self.btn_next.setFixedHeight(btn_h)
         self.btn_next.setMinimumWidth(54)
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -388,7 +370,7 @@ class WelcomeBanner(QWidget):
         self.lbl_title.setText(title)
         self.lbl_body.setText(body)
         self.dot_widget.set_step(self._step)
-        self.btn_next.setText("Done" if self._step == len(self._steps) - 1 else "Next")
+        self.btn_next.setText(t("welcome.btn_done") if self._step == len(self._steps) - 1 else t("welcome.btn_next"))
 
         old_h = self.height()
         new_h = self._compute_height(self.width())
