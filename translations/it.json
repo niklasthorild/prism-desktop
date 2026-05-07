@@ -2,12 +2,10 @@
   "settings.title": "Impostazioni",
   "settings.back_btn": "← Indietro",
   "settings.save_btn": "Salva",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "ASPETTO",
   "settings.section.shortcut": "SCORCIATOIA",
   "settings.section.support": "SUPPORTO",
-
   "settings.ha.url_label": "URL:",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "Token:",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "Testa connessione",
   "settings.ha.location_toggle": "Invia posizione a Home Assistant",
   "settings.ha.location_tooltip": "Segnala periodicamente la posizione di questo dispositivo tramite l'integrazione dell'App Mobile",
-
   "settings.appearance.theme_label": "Tema:",
   "settings.appearance.theme_system": "Sistema",
   "settings.appearance.theme_light": "Chiaro",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "Usa uno sfondo vetro traslucido per la finestra",
   "settings.appearance.pin_toggle": "Blocca finestra",
   "settings.appearance.pin_tooltip": "Mantiene la finestra aperta quando si fa clic all'esterno",
-
   "settings.shortcut.label": "Attiva/disattiva app:",
   "settings.shortcut.placeholder": "Nessuno",
   "settings.shortcut.recording": "Premi i tasti...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "Su KDE Wayland, la scorciatoia di attivazione è gestita da KDE. Modificala nelle Scorciatoie KDE anziché registrarla qui.",
   "settings.shortcut.wayland_hint": "Le scorciatoie globali non sono supportate su questo desktop Wayland. Crea un tasto di scelta rapida personalizzato che esegua 'prism-desktop --toggle'. Le scorciatoie delle entità nella finestra funzionano comunque.",
   "settings.shortcut.kde_btn": "Apri scorciatoie KDE",
-
   "settings.support.update_label": "Aggiornamento:",
   "settings.support.update_btn": "Cerca aggiornamenti",
   "settings.support.checking": "Controllo in corso...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "Scarica aggiornamento",
   "settings.support.check_failed": "Controllo fallito",
   "settings.support.copied": "copiato negli appunti",
-
   "button_editor.title_add": "Aggiungi pulsante",
   "button_editor.title_edit": "Modifica pulsante",
   "button_editor.cancel_btn": "Annulla",
   "button_editor.save_btn": "Salva",
-
   "button_editor.section.configuration": "CONFIGURAZIONE",
   "button_editor.section.appearance": "ASPETTO",
   "button_editor.section.shortcut": "SCORCIATOIA",
-
   "button_editor.label_label": "Etichetta:",
   "button_editor.label_placeholder": "es. Soggiorno",
   "button_editor.type_label": "Tipo:",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "Mostra la copertina dell'album come sfondo del pulsante",
   "button_editor.animated_bg_toggle": "Sfondo animato",
   "button_editor.animated_bg_tooltip": "Attiva lo sfondo parallasse animato quando non è presente una copertina",
-
   "button_editor.type.automation": "Automazione",
   "button_editor.type.camera": "Telecamera",
   "button_editor.type.climate": "Climatizzazione",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "Aspirapolvere",
   "button_editor.type.weather": "Meteo",
   "button_editor.type.3d_printer": "Stampante 3D",
-
   "button_editor.automation_toggle": "Attiva/disattiva",
   "button_editor.automation_trigger": "Avvia",
   "button_editor.automation_tooltip": "Attiva/disattiva abilita o disabilita l'automazione. Avvia la esegue immediatamente.",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "Blocca",
   "button_editor.lock_unlock": "Sblocca",
   "button_editor.lock_tooltip": "Logica di attivazione: Se bloccato → Sblocca, se sbloccato → Blocca.",
-
   "button_editor.printer.state_label": "Entità stato:",
   "button_editor.printer.progress_label": "Entità avanzamento:",
   "button_editor.printer.camera_label": "Entità telecamera:",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "Entità target piano:",
   "button_editor.printer.pause_label": "Entità pausa/riprendi:",
   "button_editor.printer.stop_label": "Entità arresto:",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "IMPOSTAZIONI",
-
   "context_menu.edit": "Modifica",
   "context_menu.duplicate": "Duplica",
   "context_menu.move_to": "Sposta in ▶",
   "context_menu.page": "Pagina {num}",
   "context_menu.clear": "Cancella",
   "context_menu.add": "Aggiungi",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "Mostra pannello",
   "tray.quit": "Esci",
-
   "notifications.connected": "Connesso",
   "notifications.entity_unavailable": "{label} non disponibile",
   "notifications.glass_ui_warning": "L'interfaccia vetro è sperimentale — non ottimizzata per la modalità chiara e potrebbe influire sulle prestazioni su hardware di fascia bassa.",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "URL o token mancante — compila entrambi i campi prima.",
   "notifications.geoclue2_missing": "GeoClue2 non trovato. Installa: {install_cmd}",
   "notifications.language_restart": "Lingua modificata — riavvia Prism Desktop per applicarla.",
-
   "welcome.step_1.title": "Benvenuto in Prism Desktop",
   "welcome.step_1.body": "Il tuo pannello di controllo di Home Assistant si trova nella barra di sistema. Clicca sull'icona — o premi Ctrl+Alt+H — per mostrare o nascondere questo pannello. Puoi modificare la scorciatoia in qualsiasi momento nelle Impostazioni.",
   "welcome.step_2.title": "Spostare e ridimensionare",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "Apri Impostazioni (icona del vassoio → Impostazioni) e inserisci l'URL di Home Assistant e un token di accesso a lunga durata. Generane uno nel tuo profilo HA in Sicurezza → Token di accesso a lunga durata → Crea token.",
   "welcome.step_5.title": "Tutto pronto",
   "welcome.step_5.body": "Premi + su qualsiasi slot vuoto per aggiungere la tua prima entità. Fai clic destro su qualsiasi pulsante per modificarlo, duplicarlo o rimuoverlo. Goditi Prism Desktop!",
-
   "welcome.btn_skip": "Salta",
   "welcome.btn_next": "Avanti",
   "welcome.btn_done": "Fine",
-
   "overlay.climate.mode_label": "MODO",
   "overlay.climate.fan_label": "VENTIL.",
   "overlay.printer.no_feed": "Nessun feed",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "Avvia",
   "overlay.robot.pause_btn": "Pausa",
   "overlay.robot.dock_btn": "Base",
-
   "dashboard_button.add": "Aggiungi",
   "dashboard_button.weather.humidity": "Umidità: {value}%",
   "dashboard_button.weather.wind": "Vento: {value}",
   "dashboard_button.media.now_playing": "In riproduzione: {info}",
-
   "notification_banner.yes": "Sì",
-  "notification_banner.no": "No"
+  "notification_banner.no": "No",
+  "sun.until_sunset": "AL TRAMONTO",
+  "sun.until_sunrise": "ALL'ALBA"
 }

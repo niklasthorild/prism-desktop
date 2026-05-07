@@ -2,12 +2,10 @@
   "settings.title": "Settings",
   "settings.back_btn": "← Back",
   "settings.save_btn": "Save",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "APPEARANCE",
   "settings.section.shortcut": "SHORTCUT",
   "settings.section.support": "SUPPORT",
-
   "settings.ha.url_label": "URL:",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "Token:",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "Test Connection",
   "settings.ha.location_toggle": "Send location to Home Assistant",
   "settings.ha.location_tooltip": "Periodically reports this device’s location via the Mobile App integration",
-
   "settings.appearance.theme_label": "Theme:",
   "settings.appearance.theme_system": "System",
   "settings.appearance.theme_light": "Light",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "Use a translucent glass background for the window",
   "settings.appearance.pin_toggle": "Pin window",
   "settings.appearance.pin_tooltip": "Keep the window open when clicking outside it",
-
   "settings.shortcut.label": "App Toggle:",
   "settings.shortcut.placeholder": "None",
   "settings.shortcut.recording": "Press keys...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "On KDE Wayland, the app-toggle shortcut is managed by KDE. Change it in KDE Shortcuts instead of recording it here.",
   "settings.shortcut.wayland_hint": "Global app-toggle shortcuts are not currently supported on this Wayland desktop. Create a custom keybind that runs ‘prism-desktop --toggle’ instead. The in-window entity shortcuts still work while Prism is focused.",
   "settings.shortcut.kde_btn": "Open KDE Shortcuts",
-
   "settings.support.update_label": "Update:",
   "settings.support.update_btn": "Check for Updates",
   "settings.support.checking": "Checking...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "Download Update",
   "settings.support.check_failed": "Check failed",
   "settings.support.copied": "copied to clipboard",
-
   "button_editor.title_add": "Add Button",
   "button_editor.title_edit": "Edit Button",
   "button_editor.cancel_btn": "Cancel",
   "button_editor.save_btn": "Save",
-
   "button_editor.section.configuration": "CONFIGURATION",
   "button_editor.section.appearance": "APPEARANCE",
   "button_editor.section.shortcut": "SHORTCUT",
-
   "button_editor.label_label": "Label:",
   "button_editor.label_placeholder": "e.g. Living Room",
   "button_editor.type_label": "Type:",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "Display album artwork as button background",
   "button_editor.animated_bg_toggle": "Animated Background",
   "button_editor.animated_bg_tooltip": "Enable animated parallax background when no album art is shown",
-
   "button_editor.type.automation": "Automation",
   "button_editor.type.camera": "Camera",
   "button_editor.type.climate": "Climate",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "Vacuum",
   "button_editor.type.weather": "Weather",
   "button_editor.type.3d_printer": "3D Printer",
-
   "button_editor.automation_toggle": "Toggle",
   "button_editor.automation_trigger": "Trigger",
   "button_editor.automation_tooltip": "Toggle enables/disables the automation. Trigger runs it immediately.",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "Lock",
   "button_editor.lock_unlock": "Unlock",
   "button_editor.lock_tooltip": "Toggle logic: If locked -> Unlock, If unlocked -> Lock.",
-
   "button_editor.printer.state_label": "State Entity:",
   "button_editor.printer.progress_label": "Progress Entity:",
   "button_editor.printer.camera_label": "Camera Entity:",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "Bed Target Entity:",
   "button_editor.printer.pause_label": "Pause/Resume Entity:",
   "button_editor.printer.stop_label": "Stop Entity:",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "SETTINGS",
-
   "context_menu.edit": "Edit",
   "context_menu.duplicate": "Duplicate",
   "context_menu.move_to": "Move to ▶",
   "context_menu.page": "Page {num}",
   "context_menu.clear": "Clear",
   "context_menu.add": "Add",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "Show Dashboard",
   "tray.quit": "Quit",
-
   "notifications.connected": "Connected",
   "notifications.entity_unavailable": "{label} is unavailable",
   "notifications.glass_ui_warning": "Glass UI is experimental — not optimised for light mode and may impact performance on low-end hardware.",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "Missing URL or token — fill in both fields first.",
   "notifications.geoclue2_missing": "GeoClue2 not found. Install: {install_cmd}",
   "notifications.language_restart": "Language changed — please restart Prism Desktop to apply.",
-
   "welcome.step_1.title": "Welcome to Prism Desktop",
   "welcome.step_1.body": "Your Home Assistant control panel lives in the system tray. Click the tray icon — or press Ctrl+Alt+H — to show or hide this panel. You can change the shortcut anytime in Settings.",
   "welcome.step_2.title": "Moving & Resizing",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "Open Settings (tray icon → Settings) and enter your Home Assistant URL and a Long-Lived Access Token. Generate one in your HA profile under Security → Long-Lived Access Tokens → Create Token.",
   "welcome.step_5.title": "You’re All Set",
   "welcome.step_5.body": "Press + on any empty slot to add your first entity. Right-click any button to edit, duplicate, or remove it. Enjoy Prism Desktop!",
-
   "welcome.btn_skip": "Skip",
   "welcome.btn_next": "Next",
   "welcome.btn_done": "Done",
-
   "overlay.climate.mode_label": "MODE",
   "overlay.climate.fan_label": "FAN",
   "overlay.printer.no_feed": "No Feed",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "Start",
   "overlay.robot.pause_btn": "Pause",
   "overlay.robot.dock_btn": "Dock",
-
   "dashboard_button.add": "Add",
   "dashboard_button.weather.humidity": "Humidity: {value}%",
   "dashboard_button.weather.wind": "Wind: {value}",
   "dashboard_button.media.now_playing": "Now Playing: {info}",
-
   "notification_banner.yes": "Yes",
-  "notification_banner.no": "No"
+  "notification_banner.no": "No",
+  "sun.until_sunset": "UNTIL SUNSET",
+  "sun.until_sunrise": "UNTIL SUNRISE"
 }

@@ -258,7 +258,7 @@ class ButtonEditWidget(QWidget):
         self.form.addRow(t("button_editor.label_label"), self.label_input)
 
         self.type_combo = QComboBox()
-        self.type_combo.addItems([td[0] for td in self._get_type_definitions()])
+        self.type_combo.addItems([td[0] for td in self.TYPE_DEFINITIONS])
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         self.form.addRow(t("button_editor.type_label"), self.type_combo)
 
@@ -332,12 +332,6 @@ class ButtonEditWidget(QWidget):
 
         self.display_style_combo.currentIndexChanged.connect(self._on_display_style_changed)
 
-        # Sun — Show Remaining Daylight toggle
-        self.sun_remaining_check = ToggleSwitch(t("button_editor.sun_timer_toggle"))
-        self.sun_remaining_check.setToolTip(t("button_editor.sun_timer_tooltip"))
-        self.sun_remaining_check.setVisible(False)
-        self.form.addRow("", self.sun_remaining_check)
-        
         # Service (Switches only)
         self.service_label = QLabel(t("button_editor.service_label"))
         self.service_combo = QComboBox()
@@ -806,9 +800,6 @@ class ButtonEditWidget(QWidget):
         # Disable appearance section for camera (no icon/color needed)
         self._set_appearance_enabled(not is_camera)
         
-        # Sun-specific toggle
-        self.sun_remaining_check.setVisible(current_type == 'sun')
-
         # Sun has no label and no shortcut — hide those rows
         is_sun = current_type == 'sun'
         self.label_input.setVisible(not is_sun)
@@ -957,8 +948,6 @@ class ButtonEditWidget(QWidget):
         # (Advanced mode checked logic removed)
         self.show_album_art_check.setChecked(self.config.get('show_album_art', True))
         self.animated_bg_toggle.setChecked(self.config.get('animated_bg', True))
-        self.sun_remaining_check.setChecked(self.config.get('show_remaining_daylight', False))
-
         # Precision
         self.precision_spin.setValue(self.config.get('precision', 1))
 
@@ -1076,9 +1065,6 @@ class ButtonEditWidget(QWidget):
                 new_config['script_variables'] = variables
             else:
                 new_config.pop('script_variables', None)
-
-        if new_config['type'] == 'sun':
-            new_config['show_remaining_daylight'] = self.sun_remaining_check.isChecked()
 
         if new_config['type'] == 'automation':
             new_config['action'] = 'trigger' if self.automation_action_combo.currentIndex() == 1 else 'toggle'

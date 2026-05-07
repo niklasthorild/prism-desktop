@@ -2,12 +2,10 @@
   "settings.title": "設定",
   "settings.back_btn": "← 戻る",
   "settings.save_btn": "保存",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "外観",
   "settings.section.shortcut": "ショートカット",
   "settings.section.support": "サポート",
-
   "settings.ha.url_label": "URL：",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "トークン：",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "接続をテスト",
   "settings.ha.location_toggle": "位置情報を Home Assistant に送信",
   "settings.ha.location_tooltip": "モバイルアプリ連携を通じて、このデバイスの位置情報を定期的に報告します",
-
   "settings.appearance.theme_label": "テーマ：",
   "settings.appearance.theme_system": "システム",
   "settings.appearance.theme_light": "ライト",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "ウィンドウに半透明のすりガラス背景を使用します",
   "settings.appearance.pin_toggle": "ウィンドウを固定",
   "settings.appearance.pin_tooltip": "ウィンドウ外をクリックしてもウィンドウを開いたままにします",
-
   "settings.shortcut.label": "アプリの切り替え：",
   "settings.shortcut.placeholder": "なし",
   "settings.shortcut.recording": "キーを押してください...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "KDE Wayland では、アプリ切り替えショートカットは KDE が管理しています。ここで録音するのではなく、KDE のショートカット設定で変更してください。",
   "settings.shortcut.wayland_hint": "この Wayland デスクトップではグローバルアプリ切り替えショートカットはサポートされていません。代わりに 'prism-desktop --toggle' を実行するカスタムキーバインドを作成してください。ウィンドウ内のエンティティショートカットは引き続き機能します。",
   "settings.shortcut.kde_btn": "KDE ショートカットを開く",
-
   "settings.support.update_label": "アップデート：",
   "settings.support.update_btn": "アップデートを確認",
   "settings.support.checking": "確認中...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "アップデートをダウンロード",
   "settings.support.check_failed": "確認に失敗しました",
   "settings.support.copied": "クリップボードにコピーしました",
-
   "button_editor.title_add": "ボタンを追加",
   "button_editor.title_edit": "ボタンを編集",
   "button_editor.cancel_btn": "キャンセル",
   "button_editor.save_btn": "保存",
-
   "button_editor.section.configuration": "設定",
   "button_editor.section.appearance": "外観",
   "button_editor.section.shortcut": "ショートカット",
-
   "button_editor.label_label": "ラベル：",
   "button_editor.label_placeholder": "例：リビング",
   "button_editor.type_label": "タイプ：",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "アルバムアートをボタンの背景として表示します",
   "button_editor.animated_bg_toggle": "アニメーション背景",
   "button_editor.animated_bg_tooltip": "アルバムアートがない場合にパララックスアニメーション背景を有効にします",
-
   "button_editor.type.automation": "オートメーション",
   "button_editor.type.camera": "カメラ",
   "button_editor.type.climate": "空調",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "ロボット掃除機",
   "button_editor.type.weather": "天気",
   "button_editor.type.3d_printer": "3D プリンター",
-
   "button_editor.automation_toggle": "切り替え",
   "button_editor.automation_trigger": "トリガー",
   "button_editor.automation_tooltip": "切り替え：オートメーションを有効/無効にします。トリガー：すぐに実行します。",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "ロック",
   "button_editor.lock_unlock": "アンロック",
   "button_editor.lock_tooltip": "切り替えロジック：ロック済み → アンロック、アンロック済み → ロック。",
-
   "button_editor.printer.state_label": "状態エンティティ：",
   "button_editor.printer.progress_label": "進捗エンティティ：",
   "button_editor.printer.camera_label": "カメラエンティティ：",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "ベッド目標エンティティ：",
   "button_editor.printer.pause_label": "一時停止/再開エンティティ：",
   "button_editor.printer.stop_label": "停止エンティティ：",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "設定",
-
   "context_menu.edit": "編集",
   "context_menu.duplicate": "複製",
   "context_menu.move_to": "移動先 ▶",
   "context_menu.page": "ページ {num}",
   "context_menu.clear": "クリア",
   "context_menu.add": "追加",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "ダッシュボードを表示",
   "tray.quit": "終了",
-
   "notifications.connected": "接続済み",
   "notifications.entity_unavailable": "{label} は利用できません",
   "notifications.glass_ui_warning": "ガラス UI は実験的です — ライトモードには最適化されておらず、低スペックのハードウェアではパフォーマンスに影響する場合があります。",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "URL またはトークンが不足しています — 両方のフィールドを入力してください。",
   "notifications.geoclue2_missing": "GeoClue2 が見つかりません。インストール：{install_cmd}",
   "notifications.language_restart": "言語が変更されました — 適用するには Prism Desktop を再起動してください。",
-
   "welcome.step_1.title": "Prism Desktop へようこそ",
   "welcome.step_1.body": "Home Assistant のコントロールパネルはシステムトレイにあります。トレイアイコンをクリック — または Ctrl+Alt+H を押す — でこのパネルを表示/非表示にできます。ショートカットはいつでも設定から変更できます。",
   "welcome.step_2.title": "移動とリサイズ",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "設定（トレイアイコン → 設定）を開き、Home Assistant の URL と長期アクセストークンを入力します。HA プロフィールのセキュリティ → 長期アクセストークン → トークンを作成 から生成できます。",
   "welcome.step_5.title": "準備完了",
   "welcome.step_5.body": "空きスロットの + を押して最初のエンティティを追加してください。ボタンを右クリックすると編集、複製、削除ができます。Prism Desktop をお楽しみください！",
-
   "welcome.btn_skip": "スキップ",
   "welcome.btn_next": "次へ",
   "welcome.btn_done": "完了",
-
   "overlay.climate.mode_label": "モード",
   "overlay.climate.fan_label": "ファン",
   "overlay.printer.no_feed": "映像なし",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "開始",
   "overlay.robot.pause_btn": "一時停止",
   "overlay.robot.dock_btn": "充電台",
-
   "dashboard_button.add": "追加",
   "dashboard_button.weather.humidity": "湿度：{value}%",
   "dashboard_button.weather.wind": "風速：{value}",
   "dashboard_button.media.now_playing": "再生中：{info}",
-
   "notification_banner.yes": "はい",
-  "notification_banner.no": "いいえ"
+  "notification_banner.no": "いいえ",
+  "sun.until_sunset": "日の入りまで",
+  "sun.until_sunrise": "日の出まで"
 }

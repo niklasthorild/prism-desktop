@@ -1421,7 +1421,7 @@ class DashboardButton(QFrame):
             # Clamp per type
             btn_type = self.config.get('type', '')
             max_x = 2 if btn_type == 'sun' else 4
-            max_y = 2 if btn_type in ('sun', '3d_printer') else 2
+            max_y = 1 if btn_type == 'sun' else 2
             new_span_x = max(1, min(max_x, self._resize_start_span[0] + dx_steps))
             new_span_y = max(1, min(max_y, self._resize_start_span[1] + dy_steps))
             

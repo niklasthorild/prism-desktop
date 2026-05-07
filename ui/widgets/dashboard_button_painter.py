@@ -8,6 +8,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import QApplication
 from ui.icons import get_icon, get_mdi_font, Icons
 from core.utils import SYSTEM_FONT
+from core.localization_manager import t
 from core.temperature_utils import format_temperature
 from ui.visuals.background_generator import BackgroundGenerator
 
@@ -1347,14 +1348,20 @@ class DashboardButtonPainter:
 
     @staticmethod
     def _draw_sun_button(button):
-        """Draw the sun entity U-shaped arc visualization.
-
-        Shape: two straight vertical arms + a semi-ellipse connecting them at the top.
-        The ellipse tangent at 180°/0° is always vertical, so arm↔arc joins are seamless.
-        """
+        """Draw the sun entity as a gauge arc (sensor-style) with the sun/moon travelling along it."""
 
         def parse_iso(s):
             return datetime.fromisoformat(s.replace('Z', '+00:00'))
+
+        def format_remaining(total_secs):
+            days  = total_secs // 86400
+            hours = (total_secs % 86400) // 3600
+            mins  = (total_secs % 3600) // 60
+            if days >= 1:
+                return f"{int(days)}d"
+            if hours >= 1:
+                return f"{int(hours)}h"
+            return f"{int(mins)}m"
 
         painter = QPainter(button)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -1362,214 +1369,179 @@ class DashboardButtonPainter:
         w = rect.width()
         h = rect.height()
 
-        # --- U shape parameters ---
-        arc_r_x  = w * 0.32           # horizontal radius of the top semi-ellipse
-        arc_r_y  = arc_r_x * 0.58    # vertical radius (arch height); tangent at ends is vertical
-        arm_len  = h * 0.10           # short straight vertical arms before the curve
+        clip_path = QPainterPath()
+        clip_path.addRoundedRect(rect.adjusted(1, 1, -1, -1), 12, 12)
+        painter.setClipPath(clip_path)
 
-        # Approximate arc length for proportional t-spacing
-        approx_arc_len = math.pi * (arc_r_x + arc_r_y) / 2.0
-        total_len = 2.0 * arm_len + approx_arc_len
-        arm_frac  = arm_len / total_len
-        arc_frac  = approx_arc_len / total_len
-
-        # Vertically center the whole shape.
-        # Shape spans: top = arc_cy - arc_r_y, bottom = arc_cy + arm_len.
-        # Center = arc_cy + (arm_len - arc_r_y) / 2 = h/2.
-        arc_cy = h / 2.0 - (arm_len - arc_r_y) / 2.0
-        cx     = w / 2.0
-        arm_bottom_y = arc_cy + arm_len   # y-coordinate where arms end (open bottom)
-
-        def u_point(t):
-            """Return (x, y) for parameter t ∈ [0, 1] along the U path.
-            t=0: bottom of left arm (sunrise/open end)
-            t=0.5: top of arch (solar noon)
-            t=1: bottom of right arm (sunset/open end)
-            """
-            if t <= arm_frac:
-                # Left arm: bottom → top (going upward)
-                s = t / arm_frac
-                return cx - arc_r_x, arm_bottom_y - arm_len * s
-            elif t <= arm_frac + arc_frac:
-                # Semi-ellipse: left (180°) → top (90°) → right (0°)
-                s = (t - arm_frac) / arc_frac
-                angle_rad = math.radians(180.0 - 180.0 * s)
-                return (cx + arc_r_x * math.cos(angle_rad),
-                        arc_cy - arc_r_y * math.sin(angle_rad))
-            else:
-                # Right arm: top → bottom (going downward)
-                s = (t - arm_frac - arc_frac) / arm_frac
-                return cx + arc_r_x, arc_cy + arm_len * s
-
-        # --- Determine light/dark mode ---
+        # Colors
         is_light = (getattr(button, 'theme_manager', None) and
                     button.theme_manager.get_effective_theme() == 'light')
-        track_rgba   = (0, 0, 0, 80)   if is_light else (255, 255, 255, 65)
-        text_rgba    = (0, 0, 0, 180)  if is_light else (255, 255, 255, 160)
+        track_color = QColor(0, 0, 0, 80)  if is_light else QColor(255, 255, 255, 65)
+        text_hex = '#1e1e1e' if is_light else '#ffffff'
+        if getattr(button, 'theme_manager', None):
+            colors = button.theme_manager.get_colors()
+            text_hex = colors.get('text', text_hex)
+        text_color = QColor(text_hex)
 
-        # --- Draw track: single gray rail ---
-        N = 80
-        pen_width = 2.0
-        pts = [u_point(i / (N - 1)) for i in range(N)]
+        # State
+        above            = (getattr(button, 'sun_state', 'unknown') == 'above_horizon')
+        next_rising_str  = getattr(button, 'sun_next_rising', None)
+        next_setting_str = getattr(button, 'sun_next_setting', None)
 
-        track_pen = QPen(QColor(*track_rgba), pen_width)
-        track_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(track_pen)
-        for i in range(N - 1):
-            painter.drawLine(QPointF(pts[i][0], pts[i][1]),
-                             QPointF(pts[i + 1][0], pts[i + 1][1]))
-
-        # --- Compute sun position ratio ---
-        above = (getattr(button, 'sun_state', 'unknown') == 'above_horizon')
+        # Sun ratio: 0 = sunrise, 1 = sunset
         ratio = None
+        if above and next_rising_str and next_setting_str:
+            try:
+                now          = datetime.now(timezone.utc)
+                next_rising  = parse_iso(next_rising_str)
+                next_setting = parse_iso(next_setting_str)
+                sunrise      = next_rising - timedelta(days=1)
+                total_secs   = (next_setting - sunrise).total_seconds()
+                elapsed      = (now - sunrise).total_seconds()
+                ratio = max(0.0, min(1.0, elapsed / total_secs)) if total_secs > 0 else 0.5
+            except Exception:
+                ratio = 0.5
 
-        if above:
-            next_rising_str  = getattr(button, 'sun_next_rising', None)
-            next_setting_str = getattr(button, 'sun_next_setting', None)
-            if next_rising_str and next_setting_str:
-                try:
-                    now = datetime.now(timezone.utc)
-                    next_rising   = parse_iso(next_rising_str)
-                    next_setting  = parse_iso(next_setting_str)
-                    today_sunrise = next_rising - timedelta(days=1)
-                    total_secs    = (next_setting - today_sunrise).total_seconds()
-                    elapsed_secs  = (now - today_sunrise).total_seconds()
-                    ratio = max(0.0, min(1.0, elapsed_secs / total_secs)) if total_secs > 0 else 0.5
-                except Exception:
-                    ratio = 0.5
+        # Moon ratio: 0 = prev sunset, 1 = next sunrise
+        moon_ratio = None
+        if not above and next_rising_str and next_setting_str:
+            try:
+                now          = datetime.now(timezone.utc)
+                next_rising  = parse_iso(next_rising_str)
+                next_setting = parse_iso(next_setting_str)
+                prev_sunset  = next_setting - timedelta(days=1)
+                night_dur    = (next_rising - prev_sunset).total_seconds()
+                elapsed      = (now - prev_sunset).total_seconds()
+                moon_ratio = max(0.0, min(1.0, elapsed / night_dur)) if night_dur > 0 else 0.5
+            except Exception:
+                moon_ratio = 0.5
 
-        # --- Draw sun dot (above horizon) ---
+        # Layout — mirrors sensor gauge positioning
+        is_wide = button.span_x >= 2
+        is_1x1  = button.span_x == 1 and button.span_y == 1
+
+        if is_wide:
+            arc_size = int(min(h - 12, w // 2 - 10))
+            arc_size = max(arc_size, 32)
+            arc_x    = rect.x() + 13
+            arc_y    = rect.y() + h / 2 - arc_size / 4
+        elif is_1x1:
+            arc_size = int((w - 8) * 0.72)
+            arc_size = max(arc_size, 24)
+            content_h = arc_size // 2 + 24
+            top_pad  = max(6, int((h - content_h) // 2))
+            arc_x    = rect.x() + (w - arc_size) / 2
+            arc_y    = rect.y() + top_pad
+        else:
+            # tall single column
+            arc_size = int(min(w - 16, h * 0.45))
+            arc_size = max(arc_size, 32)
+            arc_x    = rect.x() + (w - arc_size) / 2
+            arc_y    = rect.y() + 12
+
+        # Draw track arc (top semicircle, unfilled — sun/moon travel along it)
+        thickness = max(6.0, arc_size / 10.0)
+        inset     = thickness / 2.0
+        draw_rect = QRectF(arc_x, arc_y, arc_size, arc_size).adjusted(inset, inset, -inset, -inset)
+
+        pen_track = QPen(track_color, thickness)
+        pen_track.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen_track)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawArc(draw_rect, 0, 180 * 16)
+
+        # Point on the arc: r=0 → left/sunrise, r=0.5 → top/noon, r=1 → right/sunset
+        def arc_point(r):
+            cx = draw_rect.center().x()
+            cy = draw_rect.center().y()
+            rx = draw_rect.width() / 2
+            ry = draw_rect.height() / 2
+            theta = math.radians(180.0 - r * 180.0)
+            return cx + rx * math.cos(theta), cy - ry * math.sin(theta)
+
+        phase = getattr(button, 'sun_pulse_phase', 0.0)
+        pulse = (1.0 + math.sin(phase * 2.0 * math.pi)) / 2.0
+
+        # Sun dot travelling along the arc
         if above and ratio is not None:
-            dot_x, dot_y = u_point(ratio)
-
-            sin_t = math.sin(ratio * math.pi)   # 0 at edges, 1 at noon
-            # Dark orange at horizon ends → bright yellow at solar noon
+            dot_x, dot_y = arc_point(ratio)
+            sin_t     = math.sin(ratio * math.pi)
             dot_color = QColor(255, int(100 + 115 * sin_t), int(20 * (1.0 - sin_t)))
-            base_r = 5.0 + 2.0 * sin_t
-
-            phase = getattr(button, 'sun_pulse_phase', 0.0)
-            pulse = (1.0 + math.sin(phase * 2.0 * math.pi)) / 2.0
-
-            # Single soft glow ring — tighter, lower alpha
-            glow_c = QColor(dot_color)
+            base_r    = 5.0 + 2.0 * sin_t
+            glow_c    = QColor(dot_color)
             glow_c.setAlpha(int(22 + 14 * pulse))
             painter.setBrush(QBrush(glow_c))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QPointF(dot_x, dot_y), base_r + 2.5 + 1.0 * pulse, base_r + 2.5 + 1.0 * pulse)
-
-            # Solid dot
             painter.setBrush(QBrush(dot_color))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QPointF(dot_x, dot_y), base_r, base_r)
 
-        # --- Draw moon on arc + sunrise countdown (below horizon) ---
-        if not above:
-            next_rising_str  = getattr(button, 'sun_next_rising', None)
-            next_setting_str = getattr(button, 'sun_next_setting', None)
-            moon_t = 0.5  # fallback: top of arc
-
-            if next_rising_str and next_setting_str:
-                try:
-                    now          = datetime.now(timezone.utc)
-                    next_rising  = parse_iso(next_rising_str)
-                    next_setting = parse_iso(next_setting_str)
-                    # Estimate previous sunset as next_setting - 1 day
-                    prev_sunset  = next_setting - timedelta(days=1)
-                    night_dur    = (next_rising - prev_sunset).total_seconds()
-                    elapsed_night = (now - prev_sunset).total_seconds()
-                    night_ratio  = max(0.0, min(1.0, elapsed_night / night_dur)) if night_dur > 0 else 0.5
-                    # Moon travels t=0 (left) → t=0.5 (midnight/top) → t=1 (right/sunrise)
-                    moon_t = night_ratio
-                except Exception:
-                    pass
-
-            moon_x, moon_y = u_point(moon_t)
-
-            phase      = getattr(button, 'sun_pulse_phase', 0.0)
-            moon_pulse = (1.0 + math.sin(phase * 2.0 * math.pi)) / 2.0
-            moon_r     = 5.0  # same visual size as sun dot
-
-            # Soft glow — light yellow, tight radius, low-peak is smaller
-            glow_c = QColor(255, 245, 180, int(18 + 16 * moon_pulse))
+        # Crescent moon travelling along the arc
+        if not above and moon_ratio is not None:
+            moon_x, moon_y = arc_point(moon_ratio)
+            moon_r = 5.0
+            glow_c = QColor(255, 245, 180, int(18 + 16 * pulse))
             painter.setBrush(QBrush(glow_c))
             painter.setPen(Qt.PenStyle.NoPen)
-            glow_r = moon_r + 1.0 + 2.0 * moon_pulse
+            glow_r = moon_r + 1.0 + 2.0 * pulse
             painter.drawEllipse(QPointF(moon_x, moon_y), glow_r, glow_r)
-
-            # Vector crescent moon — outer circle minus offset inner circle
-            moon_color = QColor(255, 245, 180)  # light yellow
             outer_path = QPainterPath()
             outer_path.addEllipse(QPointF(moon_x, moon_y), moon_r, moon_r)
-            # Inner "shadow" circle: offset right+up for a tilted crescent look
-            cut_cx = moon_x + moon_r * 0.42
-            cut_cy = moon_y - moon_r * 0.18
-            cut_r  = moon_r * 0.82
             inner_path = QPainterPath()
-            inner_path.addEllipse(QPointF(cut_cx, cut_cy), cut_r, cut_r)
+            inner_path.addEllipse(QPointF(moon_x + moon_r * 0.42, moon_y - moon_r * 0.18),
+                                   moon_r * 0.82, moon_r * 0.82)
             crescent = outer_path.subtracted(inner_path)
-            painter.setBrush(QBrush(moon_color))
+            painter.setBrush(QBrush(QColor(255, 245, 180)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawPath(crescent)
 
-            # Sunrise countdown text inside the arc
-            show_remaining = button.config.get('show_remaining_daylight', False)
-            span_x = getattr(button, 'span_x', 1)
-            if show_remaining and span_x >= 2 and next_rising_str:
-                try:
-                    now         = datetime.now(timezone.utc)
-                    next_rising = parse_iso(next_rising_str)
-                    remaining   = next_rising - now
-                    if remaining.total_seconds() > 0:
-                        total_secs = int(remaining.total_seconds())
-                        hours   = total_secs // 3600
-                        minutes = (total_secs % 3600) // 60
-                        text    = f"{hours}H {minutes}M"
-                        interior_cy = (arc_cy + arm_bottom_y) / 2.0
-                        pill_font = QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold)
-                        fm = QFontMetrics(pill_font)
-                        pill_w = fm.horizontalAdvance(text) + 20
-                        pill_h = 22
-                        pill_rect = QRectF(cx - pill_w / 2, interior_cy - pill_h / 2, pill_w, pill_h)
-                        pill_path = QPainterPath()
-                        pill_path.addRoundedRect(pill_rect, pill_h / 2, pill_h / 2)
-                        pill_bg = QColor(0, 0, 0, 55) if is_light else QColor(255, 255, 255, 30)
-                        painter.fillPath(pill_path, pill_bg)
-                        painter.setFont(pill_font)
-                        painter.setPen(QColor(*text_rgba))
-                        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
-                except Exception:
-                    pass
+        # Time remaining text
+        try:
+            now = datetime.now(timezone.utc)
+            if above and next_setting_str:
+                secs = int((parse_iso(next_setting_str) - now).total_seconds())
+                time_str = format_remaining(secs) if secs > 0 else None
+            elif not above and next_rising_str:
+                secs = int((parse_iso(next_rising_str) - now).total_seconds())
+                time_str = format_remaining(secs) if secs > 0 else None
+            else:
+                time_str = None
+        except Exception:
+            time_str = None
 
-        # --- Remaining daylight text (inside the U, span_x >= 2, above horizon) ---
-        show_remaining = button.config.get('show_remaining_daylight', False)
-        span_x = getattr(button, 'span_x', 1)
-        if show_remaining and span_x >= 2 and above:
-            next_setting_str = getattr(button, 'sun_next_setting', None)
-            if next_setting_str:
-                try:
-                    now = datetime.now(timezone.utc)
-                    next_setting = parse_iso(next_setting_str)
-                    remaining = next_setting - now
-                    if remaining.total_seconds() > 0:
-                        total_secs = int(remaining.total_seconds())
-                        hours   = total_secs // 3600
-                        minutes = (total_secs % 3600) // 60
-                        text = f"{hours}H {minutes}M"
-                        interior_cy = (arc_cy + arm_bottom_y) / 2.0
-                        pill_font = QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold)
-                        fm = QFontMetrics(pill_font)
-                        pill_w = fm.horizontalAdvance(text) + 20
-                        pill_h = 22
-                        pill_rect = QRectF(cx - pill_w / 2, interior_cy - pill_h / 2, pill_w, pill_h)
-                        pill_path = QPainterPath()
-                        pill_path.addRoundedRect(pill_rect, pill_h / 2, pill_h / 2)
-                        pill_bg = QColor(0, 0, 0, 55) if is_light else QColor(255, 255, 255, 30)
-                        painter.fillPath(pill_path, pill_bg)
-                        painter.setFont(pill_font)
-                        painter.setPen(QColor(*text_rgba))
-                        painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
-                except Exception:
-                    pass
+        if time_str:
+            if is_wide:
+                context_str = t("sun.until_sunset") if above else t("sun.until_sunrise")
+                ctx_color = QColor(text_color)
+                ctx_color.setAlphaF(text_color.alphaF() * 0.55)
+
+                text_x  = arc_x + arc_size + 4
+                right_w = w - (text_x - rect.x())
+
+                time_font = QFont(SYSTEM_FONT, 15, QFont.Weight.Medium)
+                ctx_font  = QFont(SYSTEM_FONT, 8)
+                time_h = QFontMetrics(time_font).height()
+                ctx_h  = QFontMetrics(ctx_font).height()
+                gap    = 3
+                block_y = rect.y() + (h - time_h - gap - ctx_h) / 2
+
+                painter.setFont(time_font)
+                painter.setPen(text_color)
+                painter.drawText(QRectF(text_x, block_y, right_w, time_h),
+                                 Qt.AlignmentFlag.AlignCenter, time_str)
+
+                painter.setFont(ctx_font)
+                painter.setPen(ctx_color)
+                painter.drawText(QRectF(text_x, block_y + time_h + gap, right_w, ctx_h),
+                                 Qt.AlignmentFlag.AlignCenter, context_str)
+            else:
+                # Below the arc (1x1 only — no context label, space is too tight)
+                baseline_y = arc_y + arc_size / 2
+                bottom_rect = QRectF(rect.x(), baseline_y + 2, w, rect.y() + h - baseline_y - 2)
+                painter.setFont(QFont(SYSTEM_FONT, 11))
+                painter.setPen(text_color)
+                painter.drawText(bottom_rect, Qt.AlignmentFlag.AlignCenter, time_str)
 
         painter.end()
 

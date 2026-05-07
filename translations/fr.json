@@ -2,12 +2,10 @@
   "settings.title": "Paramètres",
   "settings.back_btn": "← Retour",
   "settings.save_btn": "Enregistrer",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "APPARENCE",
   "settings.section.shortcut": "RACCOURCI",
   "settings.section.support": "SUPPORT",
-
   "settings.ha.url_label": "URL :",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "Jeton :",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "Tester la connexion",
   "settings.ha.location_toggle": "Envoyer la position à Home Assistant",
   "settings.ha.location_tooltip": "Signale périodiquement la position de cet appareil via l'intégration Application Mobile",
-
   "settings.appearance.theme_label": "Thème :",
   "settings.appearance.theme_system": "Système",
   "settings.appearance.theme_light": "Clair",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "Utilise un fond vitré translucide pour la fenêtre",
   "settings.appearance.pin_toggle": "Épingler la fenêtre",
   "settings.appearance.pin_tooltip": "Garde la fenêtre ouverte lors d'un clic à l'extérieur",
-
   "settings.shortcut.label": "Bascule de l'app :",
   "settings.shortcut.placeholder": "Aucun",
   "settings.shortcut.recording": "Appuyez sur les touches...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "Sur KDE Wayland, le raccourci de bascule est géré par KDE. Modifiez-le dans les Raccourcis KDE plutôt qu'ici.",
   "settings.shortcut.wayland_hint": "Les raccourcis globaux de bascule ne sont pas pris en charge sur ce bureau Wayland. Créez un raccourci personnalisé qui exécute 'prism-desktop --toggle'. Les raccourcis d'entités dans la fenêtre fonctionnent toujours.",
   "settings.shortcut.kde_btn": "Ouvrir les raccourcis KDE",
-
   "settings.support.update_label": "Mise à jour :",
   "settings.support.update_btn": "Vérifier les mises à jour",
   "settings.support.checking": "Vérification...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "Télécharger la mise à jour",
   "settings.support.check_failed": "Vérification échouée",
   "settings.support.copied": "copié dans le presse-papiers",
-
   "button_editor.title_add": "Ajouter un bouton",
   "button_editor.title_edit": "Modifier le bouton",
   "button_editor.cancel_btn": "Annuler",
   "button_editor.save_btn": "Enregistrer",
-
   "button_editor.section.configuration": "CONFIGURATION",
   "button_editor.section.appearance": "APPARENCE",
   "button_editor.section.shortcut": "RACCOURCI",
-
   "button_editor.label_label": "Étiquette :",
   "button_editor.label_placeholder": "ex. : Salon",
   "button_editor.type_label": "Type :",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "Affiche la pochette de l'album en fond du bouton",
   "button_editor.animated_bg_toggle": "Fond animé",
   "button_editor.animated_bg_tooltip": "Active le fond parallaxe animé quand aucune pochette n'est affichée",
-
   "button_editor.type.automation": "Automatisation",
   "button_editor.type.camera": "Caméra",
   "button_editor.type.climate": "Climatisation",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "Aspirateur",
   "button_editor.type.weather": "Météo",
   "button_editor.type.3d_printer": "Imprimante 3D",
-
   "button_editor.automation_toggle": "Basculer",
   "button_editor.automation_trigger": "Déclencher",
   "button_editor.automation_tooltip": "Basculer active/désactive l'automatisation. Déclencher l'exécute immédiatement.",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "Verrouiller",
   "button_editor.lock_unlock": "Déverrouiller",
   "button_editor.lock_tooltip": "Bascule : si verrouillé → Déverrouiller, si déverrouillé → Verrouiller.",
-
   "button_editor.printer.state_label": "Entité d'état :",
   "button_editor.printer.progress_label": "Entité de progression :",
   "button_editor.printer.camera_label": "Entité caméra :",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "Entité cible plateau :",
   "button_editor.printer.pause_label": "Entité pause/reprise :",
   "button_editor.printer.stop_label": "Entité arrêt :",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "PARAMÈTRES",
-
   "context_menu.edit": "Modifier",
   "context_menu.duplicate": "Dupliquer",
   "context_menu.move_to": "Déplacer vers ▶",
   "context_menu.page": "Page {num}",
   "context_menu.clear": "Effacer",
   "context_menu.add": "Ajouter",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "Afficher le tableau de bord",
   "tray.quit": "Quitter",
-
   "notifications.connected": "Connecté",
   "notifications.entity_unavailable": "{label} est indisponible",
   "notifications.glass_ui_warning": "L'interface verre est expérimentale — non optimisée pour le mode clair et peut affecter les performances sur le matériel d'entrée de gamme.",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "URL ou jeton manquant — remplissez les deux champs d'abord.",
   "notifications.geoclue2_missing": "GeoClue2 introuvable. Installez : {install_cmd}",
   "notifications.language_restart": "Langue modifiée — veuillez redémarrer Prism Desktop pour appliquer.",
-
   "welcome.step_1.title": "Bienvenue dans Prism Desktop",
   "welcome.step_1.body": "Votre panneau de contrôle Home Assistant se trouve dans la barre des tâches. Cliquez sur l'icône — ou appuyez sur Ctrl+Alt+H — pour afficher ou masquer ce panneau. Vous pouvez modifier le raccourci à tout moment dans les Paramètres.",
   "welcome.step_2.title": "Déplacer et redimensionner",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "Ouvrez les Paramètres (icône → Paramètres) et saisissez l'URL de Home Assistant et un jeton d'accès longue durée. Générez-en un dans votre profil HA sous Sécurité → Jetons d'accès longue durée → Créer un jeton.",
   "welcome.step_5.title": "Tout est prêt",
   "welcome.step_5.body": "Appuyez sur + sur un emplacement vide pour ajouter votre première entité. Cliquez droit sur un bouton pour le modifier, le dupliquer ou le supprimer. Profitez de Prism Desktop !",
-
   "welcome.btn_skip": "Passer",
   "welcome.btn_next": "Suivant",
   "welcome.btn_done": "Terminer",
-
   "overlay.climate.mode_label": "MODE",
   "overlay.climate.fan_label": "VENTIL.",
   "overlay.printer.no_feed": "Aucun flux",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "Démarrer",
   "overlay.robot.pause_btn": "Pause",
   "overlay.robot.dock_btn": "Base",
-
   "dashboard_button.add": "Ajouter",
   "dashboard_button.weather.humidity": "Humidité : {value}%",
   "dashboard_button.weather.wind": "Vent : {value}",
   "dashboard_button.media.now_playing": "En cours : {info}",
-
   "notification_banner.yes": "Oui",
-  "notification_banner.no": "Non"
+  "notification_banner.no": "Non",
+  "sun.until_sunset": "AVANT LE COUCHER",
+  "sun.until_sunrise": "AVANT LE LEVER"
 }

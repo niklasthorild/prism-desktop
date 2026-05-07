@@ -2,12 +2,10 @@
   "settings.title": "Ajustes",
   "settings.back_btn": "← Volver",
   "settings.save_btn": "Guardar",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "APARIENCIA",
   "settings.section.shortcut": "ATAJO",
   "settings.section.support": "SOPORTE",
-
   "settings.ha.url_label": "URL:",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "Token:",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "Probar conexión",
   "settings.ha.location_toggle": "Enviar ubicación a Home Assistant",
   "settings.ha.location_tooltip": "Reporta periódicamente la ubicación de este dispositivo mediante la integración de la App Móvil",
-
   "settings.appearance.theme_label": "Tema:",
   "settings.appearance.theme_system": "Sistema",
   "settings.appearance.theme_light": "Claro",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "Usa un fondo de cristal translúcido para la ventana",
   "settings.appearance.pin_toggle": "Anclar ventana",
   "settings.appearance.pin_tooltip": "Mantiene la ventana abierta al hacer clic fuera de ella",
-
   "settings.shortcut.label": "Alternar app:",
   "settings.shortcut.placeholder": "Ninguno",
   "settings.shortcut.recording": "Presiona las teclas...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "En KDE Wayland, el atajo de alternancia de la app es gestionado por KDE. Cámbialo en los Atajos de KDE en lugar de grabarlo aquí.",
   "settings.shortcut.wayland_hint": "Los atajos globales de alternancia no están disponibles en este escritorio Wayland. Crea un atajo personalizado que ejecute 'prism-desktop --toggle'. Los atajos de entidades dentro de la ventana siguen funcionando.",
   "settings.shortcut.kde_btn": "Abrir atajos de KDE",
-
   "settings.support.update_label": "Actualización:",
   "settings.support.update_btn": "Buscar actualizaciones",
   "settings.support.checking": "Comprobando...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "Descargar actualización",
   "settings.support.check_failed": "Comprobación fallida",
   "settings.support.copied": "copiado al portapapeles",
-
   "button_editor.title_add": "Añadir botón",
   "button_editor.title_edit": "Editar botón",
   "button_editor.cancel_btn": "Cancelar",
   "button_editor.save_btn": "Guardar",
-
   "button_editor.section.configuration": "CONFIGURACIÓN",
   "button_editor.section.appearance": "APARIENCIA",
   "button_editor.section.shortcut": "ATAJO",
-
   "button_editor.label_label": "Etiqueta:",
   "button_editor.label_placeholder": "ej. Salón",
   "button_editor.type_label": "Tipo:",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "Muestra la portada del álbum como fondo del botón",
   "button_editor.animated_bg_toggle": "Fondo animado",
   "button_editor.animated_bg_tooltip": "Activa el fondo parallax animado cuando no se muestra portada",
-
   "button_editor.type.automation": "Automatización",
   "button_editor.type.camera": "Cámara",
   "button_editor.type.climate": "Climatización",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "Aspiradora",
   "button_editor.type.weather": "Tiempo",
   "button_editor.type.3d_printer": "Impresora 3D",
-
   "button_editor.automation_toggle": "Alternar",
   "button_editor.automation_trigger": "Activar",
   "button_editor.automation_tooltip": "Alternar activa/desactiva la automatización. Activar la ejecuta inmediatamente.",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "Bloquear",
   "button_editor.lock_unlock": "Desbloquear",
   "button_editor.lock_tooltip": "Lógica de alternancia: Si bloqueado → Desbloquear, si desbloqueado → Bloquear.",
-
   "button_editor.printer.state_label": "Entidad de estado:",
   "button_editor.printer.progress_label": "Entidad de progreso:",
   "button_editor.printer.camera_label": "Entidad de cámara:",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "Entidad objetivo de cama:",
   "button_editor.printer.pause_label": "Entidad pausa/reanudar:",
   "button_editor.printer.stop_label": "Entidad de parada:",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "AJUSTES",
-
   "context_menu.edit": "Editar",
   "context_menu.duplicate": "Duplicar",
   "context_menu.move_to": "Mover a ▶",
   "context_menu.page": "Página {num}",
   "context_menu.clear": "Limpiar",
   "context_menu.add": "Añadir",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "Mostrar panel",
   "tray.quit": "Salir",
-
   "notifications.connected": "Conectado",
   "notifications.entity_unavailable": "{label} no está disponible",
   "notifications.glass_ui_warning": "La interfaz de cristal es experimental — no está optimizada para el modo claro y puede afectar el rendimiento en hardware de gama baja.",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "Falta la URL o el token — completa ambos campos primero.",
   "notifications.geoclue2_missing": "GeoClue2 no encontrado. Instala: {install_cmd}",
   "notifications.language_restart": "Idioma cambiado — reinicia Prism Desktop para aplicarlo.",
-
   "welcome.step_1.title": "Bienvenido a Prism Desktop",
   "welcome.step_1.body": "Tu panel de control de Home Assistant está en la bandeja del sistema. Haz clic en el icono — o pulsa Ctrl+Alt+H — para mostrar u ocultar este panel. Puedes cambiar el atajo en cualquier momento en Ajustes.",
   "welcome.step_2.title": "Mover y redimensionar",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "Abre Ajustes (icono de bandeja → Ajustes) e introduce la URL de Home Assistant y un token de acceso de larga duración. Genera uno en tu perfil de HA en Seguridad → Tokens de acceso de larga duración → Crear token.",
   "welcome.step_5.title": "Todo listo",
   "welcome.step_5.body": "Pulsa + en cualquier espacio vacío para añadir tu primera entidad. Haz clic derecho en cualquier botón para editarlo, duplicarlo o eliminarlo. ¡Disfruta de Prism Desktop!",
-
   "welcome.btn_skip": "Omitir",
   "welcome.btn_next": "Siguiente",
   "welcome.btn_done": "Finalizar",
-
   "overlay.climate.mode_label": "MODO",
   "overlay.climate.fan_label": "VENTIL.",
   "overlay.printer.no_feed": "Sin imagen",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "Iniciar",
   "overlay.robot.pause_btn": "Pausa",
   "overlay.robot.dock_btn": "Base",
-
   "dashboard_button.add": "Añadir",
   "dashboard_button.weather.humidity": "Humedad: {value}%",
   "dashboard_button.weather.wind": "Viento: {value}",
   "dashboard_button.media.now_playing": "Reproduciendo: {info}",
-
   "notification_banner.yes": "Sí",
-  "notification_banner.no": "No"
+  "notification_banner.no": "No",
+  "sun.until_sunset": "HASTA EL OCASO",
+  "sun.until_sunrise": "HASTA EL AMANECER"
 }

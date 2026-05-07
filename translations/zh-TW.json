@@ -2,12 +2,10 @@
   "settings.title": "設定",
   "settings.back_btn": "← 返回",
   "settings.save_btn": "儲存",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "外觀",
   "settings.section.shortcut": "快捷鍵",
   "settings.section.support": "支援",
-
   "settings.ha.url_label": "URL：",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "權杖：",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "測試連線",
   "settings.ha.location_toggle": "傳送位置至 Home Assistant",
   "settings.ha.location_tooltip": "透過行動應用整合定期回報此裝置的位置",
-
   "settings.appearance.theme_label": "主題：",
   "settings.appearance.theme_system": "跟隨系統",
   "settings.appearance.theme_light": "淺色",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "為視窗使用半透明毛玻璃背景",
   "settings.appearance.pin_toggle": "固定視窗",
   "settings.appearance.pin_tooltip": "點擊視窗外部時保持視窗不關閉",
-
   "settings.shortcut.label": "切換應用程式：",
   "settings.shortcut.placeholder": "無",
   "settings.shortcut.recording": "請按下按鍵...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "在 KDE Wayland 下，應用程式切換快捷鍵由 KDE 管理。請在 KDE 快捷鍵設定中修改，而非在此錄製。",
   "settings.shortcut.wayland_hint": "此 Wayland 桌面不支援全域切換快捷鍵。請建立執行 'prism-desktop --toggle' 的自訂快捷鍵。視窗內的實體快捷鍵仍然有效。",
   "settings.shortcut.kde_btn": "開啟 KDE 快捷鍵",
-
   "settings.support.update_label": "更新：",
   "settings.support.update_btn": "檢查更新",
   "settings.support.checking": "檢查中...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "下載更新",
   "settings.support.check_failed": "檢查失敗",
   "settings.support.copied": "已複製到剪貼簿",
-
   "button_editor.title_add": "新增按鈕",
   "button_editor.title_edit": "編輯按鈕",
   "button_editor.cancel_btn": "取消",
   "button_editor.save_btn": "儲存",
-
   "button_editor.section.configuration": "設定",
   "button_editor.section.appearance": "外觀",
   "button_editor.section.shortcut": "快捷鍵",
-
   "button_editor.label_label": "標籤：",
   "button_editor.label_placeholder": "例如：客廳",
   "button_editor.type_label": "類型：",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "將專輯封面顯示為按鈕背景",
   "button_editor.animated_bg_toggle": "動態背景",
   "button_editor.animated_bg_tooltip": "在沒有專輯封面時啟用視差動態背景",
-
   "button_editor.type.automation": "自動化",
   "button_editor.type.camera": "攝影機",
   "button_editor.type.climate": "空調",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "掃地機器人",
   "button_editor.type.weather": "天氣",
   "button_editor.type.3d_printer": "3D 列印機",
-
   "button_editor.automation_toggle": "切換",
   "button_editor.automation_trigger": "觸發",
   "button_editor.automation_tooltip": "切換：啟用/停用自動化。觸發：立即執行。",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "鎖定",
   "button_editor.lock_unlock": "解鎖",
   "button_editor.lock_tooltip": "切換邏輯：已鎖定 → 解鎖，已解鎖 → 鎖定。",
-
   "button_editor.printer.state_label": "狀態實體：",
   "button_editor.printer.progress_label": "進度實體：",
   "button_editor.printer.camera_label": "攝影機實體：",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "熱床目標實體：",
   "button_editor.printer.pause_label": "暫停/繼續實體：",
   "button_editor.printer.stop_label": "停止實體：",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "設定",
-
   "context_menu.edit": "編輯",
   "context_menu.duplicate": "複製",
   "context_menu.move_to": "移動至 ▶",
   "context_menu.page": "第 {num} 頁",
   "context_menu.clear": "清除",
   "context_menu.add": "新增",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "顯示儀表板",
   "tray.quit": "結束",
-
   "notifications.connected": "已連線",
   "notifications.entity_unavailable": "{label} 無法使用",
   "notifications.glass_ui_warning": "毛玻璃介面為實驗性功能——未針對淺色模式最佳化，可能影響低階硬體的效能。",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "缺少 URL 或權杖——請先填寫兩個欄位。",
   "notifications.geoclue2_missing": "找不到 GeoClue2。安裝指令：{install_cmd}",
   "notifications.language_restart": "語言已變更——請重新啟動 Prism Desktop 以套用。",
-
   "welcome.step_1.title": "歡迎使用 Prism Desktop",
   "welcome.step_1.body": "您的 Home Assistant 控制面板位於系統匣中。點擊匣圖示——或按 Ctrl+Alt+H——來顯示或隱藏此面板。您可以隨時在設定中變更快捷鍵。",
   "welcome.step_2.title": "移動與調整大小",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "開啟設定（匣圖示 → 設定），輸入您的 Home Assistant URL 和長期存取權杖。在 HA 個人資料的安全性 → 長期存取權杖 → 建立權杖中產生。",
   "welcome.step_5.title": "一切就緒",
   "welcome.step_5.body": "按任意空白格上的 + 新增您的第一個實體。在任意按鈕上按滑鼠右鍵可編輯、複製或移除它。祝您使用 Prism Desktop 愉快！",
-
   "welcome.btn_skip": "跳過",
   "welcome.btn_next": "下一步",
   "welcome.btn_done": "完成",
-
   "overlay.climate.mode_label": "模式",
   "overlay.climate.fan_label": "風速",
   "overlay.printer.no_feed": "無畫面",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "啟動",
   "overlay.robot.pause_btn": "暫停",
   "overlay.robot.dock_btn": "回充",
-
   "dashboard_button.add": "新增",
   "dashboard_button.weather.humidity": "濕度：{value}%",
   "dashboard_button.weather.wind": "風速：{value}",
   "dashboard_button.media.now_playing": "正在播放：{info}",
-
   "notification_banner.yes": "是",
-  "notification_banner.no": "否"
+  "notification_banner.no": "否",
+  "sun.until_sunset": "距日落",
+  "sun.until_sunrise": "距日出"
 }

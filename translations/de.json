@@ -2,12 +2,10 @@
   "settings.title": "Einstellungen",
   "settings.back_btn": "← Zurück",
   "settings.save_btn": "Speichern",
-
   "settings.section.home_assistant": "HOME ASSISTANT",
   "settings.section.appearance": "ERSCHEINUNGSBILD",
   "settings.section.shortcut": "TASTENKÜRZEL",
   "settings.section.support": "SUPPORT",
-
   "settings.ha.url_label": "URL:",
   "settings.ha.url_placeholder": "http://homeassistant.local:8123",
   "settings.ha.token_label": "Token:",
@@ -15,7 +13,6 @@
   "settings.ha.test_btn": "Verbindung testen",
   "settings.ha.location_toggle": "Standort an Home Assistant senden",
   "settings.ha.location_tooltip": "Meldet den Standort dieses Geräts regelmäßig über die Mobile-App-Integration",
-
   "settings.appearance.theme_label": "Design:",
   "settings.appearance.theme_system": "System",
   "settings.appearance.theme_light": "Hell",
@@ -39,7 +36,6 @@
   "settings.appearance.glass_tooltip": "Verwendet einen halbtransparenten Glashintergrund für das Fenster",
   "settings.appearance.pin_toggle": "Fenster anheften",
   "settings.appearance.pin_tooltip": "Hält das Fenster offen, wenn außerhalb geklickt wird",
-
   "settings.shortcut.label": "App umschalten:",
   "settings.shortcut.placeholder": "Keiner",
   "settings.shortcut.recording": "Tasten drücken...",
@@ -47,7 +43,6 @@
   "settings.shortcut.kde_hint": "Unter KDE Wayland wird der App-Umschalter von KDE verwaltet. Ändere ihn in den KDE-Tastenkombinationen statt ihn hier aufzuzeichnen.",
   "settings.shortcut.wayland_hint": "Globale App-Umschalter werden auf diesem Wayland-Desktop nicht unterstützt. Erstelle eine benutzerdefinierte Tastenkombination, die 'prism-desktop --toggle' ausführt. Entitätsverknüpfungen im Fenster funktionieren weiterhin.",
   "settings.shortcut.kde_btn": "KDE-Tastenkombinationen öffnen",
-
   "settings.support.update_label": "Update:",
   "settings.support.update_btn": "Nach Updates suchen",
   "settings.support.checking": "Wird geprüft...",
@@ -56,16 +51,13 @@
   "settings.support.download_btn": "Update herunterladen",
   "settings.support.check_failed": "Prüfung fehlgeschlagen",
   "settings.support.copied": "in die Zwischenablage kopiert",
-
   "button_editor.title_add": "Schaltfläche hinzufügen",
   "button_editor.title_edit": "Schaltfläche bearbeiten",
   "button_editor.cancel_btn": "Abbrechen",
   "button_editor.save_btn": "Speichern",
-
   "button_editor.section.configuration": "KONFIGURATION",
   "button_editor.section.appearance": "ERSCHEINUNGSBILD",
   "button_editor.section.shortcut": "TASTENKÜRZEL",
-
   "button_editor.label_label": "Bezeichnung:",
   "button_editor.label_placeholder": "z. B. Wohnzimmer",
   "button_editor.type_label": "Typ:",
@@ -103,7 +95,6 @@
   "button_editor.album_art_tooltip": "Zeigt das Albumcover als Schaltflächenhintergrund an",
   "button_editor.animated_bg_toggle": "Animierter Hintergrund",
   "button_editor.animated_bg_tooltip": "Aktiviert den animierten Parallax-Hintergrund, wenn kein Albumcover angezeigt wird",
-
   "button_editor.type.automation": "Automatisierung",
   "button_editor.type.camera": "Kamera",
   "button_editor.type.climate": "Klimaanlage",
@@ -121,7 +112,6 @@
   "button_editor.type.vacuum": "Saugroboter",
   "button_editor.type.weather": "Wetter",
   "button_editor.type.3d_printer": "3D-Drucker",
-
   "button_editor.automation_toggle": "Umschalten",
   "button_editor.automation_trigger": "Auslösen",
   "button_editor.automation_tooltip": "Umschalten aktiviert/deaktiviert die Automatisierung. Auslösen führt sie sofort aus.",
@@ -129,7 +119,6 @@
   "button_editor.lock_lock": "Sperren",
   "button_editor.lock_unlock": "Entsperren",
   "button_editor.lock_tooltip": "Umschaltlogik: Wenn gesperrt → Entsperren, wenn entsperrt → Sperren.",
-
   "button_editor.printer.state_label": "Statusentität:",
   "button_editor.printer.progress_label": "Fortschrittsentität:",
   "button_editor.printer.camera_label": "Kameraentität:",
@@ -139,21 +128,17 @@
   "button_editor.printer.bed_target_label": "Druckbettzielentität:",
   "button_editor.printer.pause_label": "Pause/Fortsetzen-Entität:",
   "button_editor.printer.stop_label": "Stopp-Entität:",
-
   "dashboard.footer.home_assistant": "  HOME ASSISTANT",
   "dashboard.footer.settings": "EINSTELLUNGEN",
-
   "context_menu.edit": "Bearbeiten",
   "context_menu.duplicate": "Duplizieren",
   "context_menu.move_to": "Verschieben nach ▶",
   "context_menu.page": "Seite {num}",
   "context_menu.clear": "Leeren",
   "context_menu.add": "Hinzufügen",
-
   "tray.tooltip": "Prism Desktop - Home Assistant",
   "tray.show_dashboard": "Dashboard anzeigen",
   "tray.quit": "Beenden",
-
   "notifications.connected": "Verbunden",
   "notifications.entity_unavailable": "{label} ist nicht verfügbar",
   "notifications.glass_ui_warning": "Die Glas-Oberfläche ist experimentell — nicht für den hellen Modus optimiert und kann die Leistung auf schwacher Hardware beeinträchtigen.",
@@ -163,7 +148,6 @@
   "notifications.missing_credentials": "URL oder Token fehlt — bitte beide Felder ausfüllen.",
   "notifications.geoclue2_missing": "GeoClue2 nicht gefunden. Installieren: {install_cmd}",
   "notifications.language_restart": "Sprache geändert — bitte Prism Desktop neu starten, um sie anzuwenden.",
-
   "welcome.step_1.title": "Willkommen bei Prism Desktop",
   "welcome.step_1.body": "Dein Home Assistant-Bedienfeld befindet sich in der Systemleiste. Klicke auf das Symbol — oder drücke Strg+Alt+H — um dieses Panel ein- oder auszublenden. Du kannst das Tastenkürzel jederzeit in den Einstellungen ändern.",
   "welcome.step_2.title": "Verschieben und Skalieren",
@@ -174,11 +158,9 @@
   "welcome.step_4.body": "Öffne Einstellungen (Systemleistensymbol → Einstellungen) und gib deine Home Assistant-URL und ein langlebiges Zugriffstoken ein. Erstelle eines in deinem HA-Profil unter Sicherheit → Langlebige Zugriffstoken → Token erstellen.",
   "welcome.step_5.title": "Alles bereit",
   "welcome.step_5.body": "Drücke + auf einem leeren Feld, um deine erste Entität hinzuzufügen. Klicke mit der rechten Maustaste auf eine Schaltfläche, um sie zu bearbeiten, zu duplizieren oder zu entfernen. Viel Spaß mit Prism Desktop!",
-
   "welcome.btn_skip": "Überspringen",
   "welcome.btn_next": "Weiter",
   "welcome.btn_done": "Fertig",
-
   "overlay.climate.mode_label": "MODUS",
   "overlay.climate.fan_label": "LÜFTER",
   "overlay.printer.no_feed": "Kein Feed",
@@ -186,12 +168,12 @@
   "overlay.robot.start_btn": "Starten",
   "overlay.robot.pause_btn": "Pause",
   "overlay.robot.dock_btn": "Basis",
-
   "dashboard_button.add": "Hinzufügen",
   "dashboard_button.weather.humidity": "Luftfeuchtigkeit: {value}%",
   "dashboard_button.weather.wind": "Wind: {value}",
   "dashboard_button.media.now_playing": "Wird abgespielt: {info}",
-
   "notification_banner.yes": "Ja",
-  "notification_banner.no": "Nein"
+  "notification_banner.no": "Nein",
+  "sun.until_sunset": "BIS SONNENUNTERGANG",
+  "sun.until_sunrise": "BIS SONNENAUFGANG"
 }
