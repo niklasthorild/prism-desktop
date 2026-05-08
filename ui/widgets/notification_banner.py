@@ -22,11 +22,12 @@ GAP = 5  # px gap between dashboard edge and banner
 class _CountdownButton(QPushButton):
     """QPushButton that draws a depleting arc around its border as a countdown."""
 
-    def __init__(self, *args, is_light=False, corner_radius=4, **kwargs):
+    def __init__(self, *args, is_light=False, corner_radius=4, x_icon=False, **kwargs):
         super().__init__(*args, **kwargs)
         self._countdown = 0.0
         self._is_light = is_light
         self._corner_radius = corner_radius
+        self._x_icon = x_icon
 
     def get_countdown(self):
         return self._countdown
@@ -39,6 +40,18 @@ class _CountdownButton(QPushButton):
 
     def paintEvent(self, event):
         super().paintEvent(event)
+        if self._x_icon:
+            xp = QPainter(self)
+            xp.setRenderHint(QPainter.RenderHint.Antialiasing)
+            pen = QPen(QColor(255, 255, 255, 185), 1.8)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            xp.setPen(pen)
+            r = QRectF(self.rect())
+            pad = r.width() * 0.35
+            inner = r.adjusted(pad, pad, -pad, -pad)
+            xp.drawLine(inner.topLeft(), inner.bottomRight())
+            xp.drawLine(inner.topRight(), inner.bottomLeft())
+            xp.end()
         if self._countdown <= 0.0:
             return
         painter = QPainter(self)
@@ -241,11 +254,10 @@ class NotificationBanner(QWidget):
         else:
             btn_h = int((BANNER_HEIGHT - 8) * 0.75)
             close_style = (
-                f"QPushButton {{ background: rgb(175,55,55); border: none; border-radius: 4px;"
-                f"  color: #fff; font-family: '{SYSTEM_FONT}'; font-size: 10px; }}"
+                f"QPushButton {{ background: rgb(175,55,55); border: none; border-radius: 4px; }}"
                 f"QPushButton:hover {{ background: rgb(205,65,65); }}"
             )
-            self.btn_close = _CountdownButton("\u2715", is_light=glass_is_light, corner_radius=4)
+            self.btn_close = _CountdownButton("", is_light=glass_is_light, corner_radius=4, x_icon=True)
             self.btn_close.setFixedSize(btn_h, btn_h)
             self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_close.setStyleSheet(close_style)
