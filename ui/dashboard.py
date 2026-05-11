@@ -1657,6 +1657,7 @@ class Dashboard(QWidget):
         self.edit_widget.saved.connect(self._on_edit_saved)
         self.edit_widget.cancelled.connect(self._on_edit_cancelled)
         self.edit_widget.size_changed.connect(self._on_edit_size_changed)
+        self.edit_widget.custom_colors_changed.connect(self._on_custom_colors_changed)
         
         self.edit_scroll = QScrollArea()
         self.edit_scroll.setWidget(self.edit_widget)
@@ -1728,6 +1729,12 @@ class Dashboard(QWidget):
     def _on_edit_cancelled(self):
         self.transition_to('grid')
 
+    def _on_custom_colors_changed(self, colors: list):
+        if 'appearance' not in self.config:
+            self.config['appearance'] = {}
+        self.config['appearance']['custom_colors'] = colors
+        self.save_config_requested.emit()
+
     def _on_edit_size_changed(self):
         """Handle dynamic height changes from the Edit Widget (debounced to prevent jitter)."""
         if getattr(self, '_current_view', '') != 'edit_button':
@@ -1784,6 +1791,8 @@ class Dashboard(QWidget):
         self.edit_widget.entities = entities or []
         # IMPORTANT: Populate entities FIRST, then load config so entity_id can be selected
         self.edit_widget.populate_entities()
+        custom_colors = self.config.get('appearance', {}).get('custom_colors', [])
+        self.edit_widget.set_custom_colors(custom_colors)
         self.edit_widget.load_config()
         
         # Transition

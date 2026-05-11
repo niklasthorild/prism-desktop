@@ -6,12 +6,60 @@ Embedded Button Editor Widget
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QFormLayout,
-    QSpinBox, QDoubleSpinBox, QSizePolicy, QCompleter
+    QSpinBox, QDoubleSpinBox, QSizePolicy, QCompleter, QMenu
 )
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor, QFont, QPainter, QLinearGradient, QPen
 from ui.widgets.toggle_switch import ToggleSwitch
 from core.localization_manager import t
+
+
+class HueSlider(QWidget):
+    hue_changed = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._hue = 0
+        self.setFixedHeight(18)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMouseTracking(True)
+
+    def get_hue(self):
+        return self._hue
+
+    def set_hue(self, hue):
+        self._hue = max(0, min(359, hue))
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = self.rect()
+        grad = QLinearGradient(0, 0, rect.width(), 0)
+        for i in range(7):
+            grad.setColorAt(i / 6, QColor.fromHsv(i * 60, 255, 255))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(grad)
+        painter.drawRoundedRect(rect, 4, 4)
+        x = int(self._hue / 359 * max(rect.width() - 1, 1))
+        cy = rect.height() // 2
+        painter.setPen(QPen(Qt.GlobalColor.white, 2))
+        painter.setBrush(QColor.fromHsv(self._hue, 255, 255))
+        painter.drawEllipse(x - 7, cy - 7, 14, 14)
+
+    def _set_from_x(self, x):
+        hue = max(0, min(359, round(x / max(self.width() - 1, 1) * 359)))
+        if hue != self._hue:
+            self._hue = hue
+            self.update()
+            self.hue_changed.emit(self._hue)
+
+    def mousePressEvent(self, e):
+        self._set_from_x(e.position().x())
+
+    def mouseMoveEvent(self, e):
+        if e.buttons() & Qt.MouseButton.LeftButton:
+            self._set_from_x(e.position().x())
 
 class ButtonEditWidget(QWidget):
     """
@@ -64,7 +112,8 @@ class ButtonEditWidget(QWidget):
     
     saved = pyqtSignal(dict)
     cancelled = pyqtSignal()
-    size_changed = pyqtSignal()  # Emitted when widget needs to resize
+    size_changed = pyqtSignal()
+    custom_colors_changed = pyqtSignal(list)
     
     # Class-level preference for entity display format (persists across instances)
     _global_show_friendly_names = True
@@ -76,8 +125,10 @@ class ButtonEditWidget(QWidget):
         self.slot = slot
         self.theme_manager = theme_manager
         self.input_manager = input_manager
-        # Removed instance-specific flag, now using class variable
-        
+        self.custom_colors = []
+        self._custom_swatch_btns = []
+        self._editing_custom_hex = None
+
         # Connect input manager if available
         if self.input_manager:
             self.input_manager.recorded.connect(self.on_shortcut_recorded)
@@ -111,12 +162,14 @@ class ButtonEditWidget(QWidget):
             input_focus_bg = "rgba(0, 0, 0, 0.08)"
             color_btn_border = "#333"
             section_header_color = "#666666"  # Dark gray for light mode
+            custom_btn_ring = "rgba(0, 0, 0, 0.28)"
         else:
             input_bg = "rgba(255, 255, 255, 0.08)"
             input_border = "rgba(255, 255, 255, 0.1)"
             input_focus_bg = "rgba(255, 255, 255, 0.12)"
             color_btn_border = "white"
             section_header_color = "#8e8e93"  # Apple gray for dark mode
+            custom_btn_ring = "rgba(255, 255, 255, 0.3)"
             
         from ui.styles import Typography, Dimensions
         
@@ -181,6 +234,24 @@ class ButtonEditWidget(QWidget):
             QPushButton#colorBtn:checked {{
                 border: 2px solid {color_btn_border};
             }}
+
+            QPushButton#colorBtnCustom {{
+                border-radius: {Dimensions.RADIUS_SMALL};
+                border: 2px solid {custom_btn_ring};
+            }}
+            QPushButton#colorBtnCustom:checked {{
+                border: 2px solid {color_btn_border};
+            }}
+
+            QPushButton#colorSaveBtn {{
+                background-color: {colors['accent']};
+                color: white;
+                border: none;
+                border-radius: {Dimensions.RADIUS_MEDIUM};
+                font-weight: {Typography.WEIGHT_SEMIBOLD};
+                padding: 0px;
+            }}
+            QPushButton#colorSaveBtn:hover {{ background-color: #006ce6; }}
             
             QPushButton#recordBtn {{
                 background-color: #C62828;
@@ -442,10 +513,17 @@ class ButtonEditWidget(QWidget):
         
         # Color Picker
         color_widget = QWidget()
-        color_layout = QHBoxLayout(color_widget)
-        color_layout.setContentsMargins(0, 0, 0, 0)
-        color_layout.setSpacing(8)
-        
+        color_outer_layout = QVBoxLayout(color_widget)
+        color_outer_layout.setContentsMargins(0, 0, 0, 0)
+        color_outer_layout.setSpacing(6)
+
+        # --- Swatch row ---
+        color_btn_row_widget = QWidget()
+        color_btn_row_layout = QHBoxLayout(color_btn_row_widget)
+        color_btn_row_layout.setContentsMargins(0, 0, 0, 0)
+        color_btn_row_layout.setSpacing(8)
+        self.color_button_row = color_btn_row_layout
+
         self.preset_colors = [
             ("#4285F4", "Blue"),
             ("#34A853", "Green"),
@@ -456,10 +534,10 @@ class ButtonEditWidget(QWidget):
             ("#607D8B", "Gray"),
             ("#3C3C3C", "Sensor Gray"),
         ]
-        
+
         self.color_buttons = []
         self.selected_color = "#4285F4"
-        
+
         for color_hex, tooltip in self.preset_colors:
             btn = QPushButton()
             btn.setObjectName("colorBtn")
@@ -467,20 +545,74 @@ class ButtonEditWidget(QWidget):
             btn.setCheckable(True)
             btn.setToolTip(tooltip)
             if color_hex == "#3C3C3C":
-                # Special diagonal split for Sensor Gray (Dynamic)
                 btn.setStyleSheet("""
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-                        stop:0 #ffffff, stop:0.49 #ffffff, 
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                        stop:0 #ffffff, stop:0.49 #ffffff,
                         stop:0.51 #3c3c3c, stop:1 #3c3c3c);
                 """)
             else:
                 btn.setStyleSheet(f"background-color: {color_hex};")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda checked, c=color_hex: self.select_color(c))
-            color_layout.addWidget(btn)
+            color_btn_row_layout.addWidget(btn)
             self.color_buttons.append((btn, color_hex))
-            
-        color_layout.addStretch()
+
+        # Rainbow button (opens custom picker)
+        self.rainbow_btn = QPushButton()
+        self.rainbow_btn.setObjectName("colorBtn")
+        self.rainbow_btn.setFixedSize(24, 24)
+        self.rainbow_btn.setCheckable(True)
+        self.rainbow_btn.setToolTip("Custom color")
+        self.rainbow_btn.setStyleSheet("""
+            background: qlineargradient(x1:0, y1:1, x2:1, y2:0,
+                stop:0 #ff0000, stop:0.17 #ffff00, stop:0.33 #00ff00,
+                stop:0.5 #00ffff, stop:0.67 #0000ff, stop:0.83 #ff00ff,
+                stop:1 #ff0000);
+            border-radius: 4px;
+        """)
+        self.rainbow_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.rainbow_btn.toggled.connect(self._on_rainbow_toggled)
+        color_btn_row_layout.addWidget(self.rainbow_btn)
+        color_btn_row_layout.addStretch()
+
+        color_outer_layout.addWidget(color_btn_row_widget)
+
+        # --- Inline custom color picker (hidden by default) ---
+        self.color_picker_container = QWidget()
+        picker_layout = QVBoxLayout(self.color_picker_container)
+        picker_layout.setContentsMargins(0, 4, 0, 0)
+        picker_layout.setSpacing(6)
+
+        self.hue_slider = HueSlider()
+        picker_layout.addWidget(self.hue_slider)
+
+        picker_bottom = QWidget()
+        picker_bottom_row = QHBoxLayout(picker_bottom)
+        picker_bottom_row.setContentsMargins(0, 0, 0, 0)
+        picker_bottom_row.setSpacing(6)
+
+        self.hex_input = QLineEdit()
+        self.hex_input.setPlaceholderText("#RRGGBB")
+        self.hex_input.setMaximumWidth(100)
+        picker_bottom_row.addWidget(self.hex_input)
+        picker_bottom_row.addStretch()
+
+        self.save_color_btn = QPushButton("+")
+        self.save_color_btn.setObjectName("colorSaveBtn")
+        self.save_color_btn.setFixedSize(32, 32)
+        self.save_color_btn.setToolTip("Save as swatch")
+        self.save_color_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        picker_bottom_row.addWidget(self.save_color_btn)
+
+        picker_layout.addWidget(picker_bottom)
+        self.color_picker_container.setVisible(False)
+        color_outer_layout.addWidget(self.color_picker_container)
+
+        # Connections
+        self.hue_slider.hue_changed.connect(self._on_hue_changed)
+        self.hex_input.editingFinished.connect(self._on_hex_input_finished)
+        self.save_color_btn.clicked.connect(self._on_save_custom_color)
+
         self.form.addRow(t("button_editor.color_label"), color_widget)
         self.color_widget = color_widget
         self.color_label = self.form.labelForField(color_widget)
@@ -906,14 +1038,172 @@ class ButtonEditWidget(QWidget):
             self.color_widget.setEnabled(enabled)
             for btn, _ in self.color_buttons:
                 btn.setEnabled(enabled)
+        if hasattr(self, 'rainbow_btn'):
+            self.rainbow_btn.setEnabled(enabled)
+        if hasattr(self, 'hue_slider'):
+            self.hue_slider.setEnabled(enabled)
+        if hasattr(self, 'hex_input'):
+            self.hex_input.setEnabled(enabled)
+        if hasattr(self, 'save_color_btn'):
+            self.save_color_btn.setEnabled(enabled)
         if hasattr(self, 'color_label') and self.color_label:
             self.color_label.setEnabled(enabled)
-        
+
     def select_color(self, color_hex):
         self.selected_color = color_hex
         for btn, c in self.color_buttons:
             btn.setChecked(c == color_hex)
-            
+        if not hasattr(self, 'rainbow_btn'):
+            return
+        is_known = any(c == color_hex for _, c in self.color_buttons)
+        # Block rainbow_btn signals while we set its state to avoid recursion
+        self.rainbow_btn.blockSignals(True)
+        self.rainbow_btn.setChecked(not is_known)
+        self.rainbow_btn.blockSignals(False)
+        if not is_known:
+            qc = QColor(color_hex)
+            if qc.isValid():
+                h = qc.hsvHue()
+                self.hue_slider.set_hue(h if h >= 0 else 0)
+                self.hex_input.setText(color_hex.upper())
+        elif hasattr(self, 'color_picker_container') and self.color_picker_container.isVisible():
+            self.color_picker_container.setVisible(False)
+            self.size_changed.emit()
+
+    # --- Custom color picker methods ---
+
+    def set_custom_colors(self, colors: list):
+        self._editing_custom_hex = None
+        self.custom_colors = list(colors)
+        stale = set(id(b) for b in self._custom_swatch_btns)
+        self.color_buttons = [(b, c) for b, c in self.color_buttons if id(b) not in stale]
+        for btn in self._custom_swatch_btns:
+            self.color_button_row.removeWidget(btn)
+            btn.deleteLater()
+        self._custom_swatch_btns.clear()
+        for hex_color in self.custom_colors:
+            self._add_custom_color_swatch(hex_color, save=False)
+
+    def _add_custom_color_swatch(self, color_hex: str, save: bool = True):
+        btn = QPushButton()
+        btn.setObjectName("colorBtnCustom")
+        btn.setFixedSize(24, 24)
+        btn.setCheckable(True)
+        btn.setToolTip(color_hex)
+        btn.setStyleSheet(f"background-color: {color_hex};")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(lambda checked, c=color_hex: self.select_color(c))
+        btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        btn.customContextMenuRequested.connect(
+            lambda pos, c=color_hex, b=btn: self._show_custom_color_menu(pos, c, b)
+        )
+        # Insert before rainbow button (rainbow is second-to-last, stretch is last)
+        insert_pos = self.color_button_row.count() - 2
+        self.color_button_row.insertWidget(insert_pos, btn)
+        self.color_buttons.append((btn, color_hex))
+        self._custom_swatch_btns.append(btn)
+        if save:
+            self.custom_colors.append(color_hex)
+            self.custom_colors_changed.emit(list(self.custom_colors))
+
+    def _on_rainbow_toggled(self, checked: bool):
+        self.color_picker_container.setVisible(checked)
+        if checked:
+            for btn, _ in self.color_buttons:
+                btn.setChecked(False)
+            self._update_color_from_slider()
+        self.size_changed.emit()
+
+    def _update_color_from_slider(self):
+        color = QColor.fromHsv(self.hue_slider.get_hue(), 255, 255)
+        self.selected_color = color.name().upper()
+        self.hex_input.setText(self.selected_color)
+
+    def _on_hue_changed(self, hue: int):
+        self._update_color_from_slider()
+
+    def _on_hex_input_finished(self):
+        text = self.hex_input.text().strip().lstrip('#')
+        if len(text) == 6:
+            c = QColor(f"#{text}")
+            if c.isValid():
+                self.selected_color = f"#{text.upper()}"
+                h = c.hsvHue()
+                if h >= 0:
+                    self.hue_slider.set_hue(h)
+
+    def _on_save_custom_color(self):
+        if not self.selected_color:
+            return
+        new_color = self.selected_color.upper()
+        if self._editing_custom_hex is not None:
+            old_hex = self._editing_custom_hex
+            self._editing_custom_hex = None
+            self._delete_custom_color_silent(old_hex)
+        existing_upper = {c.upper() for _, c in self.color_buttons}
+        if new_color not in existing_upper:
+            self._add_custom_color_swatch(new_color, save=True)
+        self.select_color(new_color)
+
+    def _show_custom_color_menu(self, pos, color_hex: str, btn: QPushButton):
+        menu = QMenu(self)
+        menu.setStyleSheet(self._menu_stylesheet())
+        edit_action = menu.addAction(t("context_menu.edit"))
+        delete_action = menu.addAction(t("context_menu.clear"))
+        action = menu.exec(btn.mapToGlobal(pos))
+        if action == edit_action:
+            self._edit_custom_color(color_hex)
+        elif action == delete_action:
+            self._delete_custom_color(color_hex)
+
+    def _menu_stylesheet(self) -> str:
+        if self.theme_manager:
+            colors = self.theme_manager.get_colors()
+        else:
+            colors = {'text': '#e0e0e0', 'accent': '#007aff'}
+        is_light = colors.get('text', '#ffffff') == '#1e1e1e'
+        bg, border, text = ('#f5f5f5', '#ddd', '#1e1e1e') if is_light else ('#2b2b2b', '#3d3d3d', '#e0e0e0')
+        return f"""
+            QMenu {{ background-color: {bg}; border: 1px solid {border}; border-radius: 6px; padding: 4px; }}
+            QMenu::item {{ background: transparent; padding: 6px 20px 6px 12px; color: {text}; border-radius: 4px; }}
+            QMenu::item:selected {{ background-color: #007aff; color: white; }}
+        """
+
+    def _edit_custom_color(self, color_hex: str):
+        self._editing_custom_hex = color_hex
+        qc = QColor(color_hex)
+        if qc.isValid():
+            h = qc.hsvHue()
+            self.hue_slider.set_hue(h if h >= 0 else 0)
+            self.selected_color = color_hex.upper()
+            self.hex_input.setText(self.selected_color)
+        # Deselect all preset/custom buttons
+        for btn, _ in self.color_buttons:
+            btn.setChecked(False)
+        self.rainbow_btn.blockSignals(True)
+        self.rainbow_btn.setChecked(True)
+        self.rainbow_btn.blockSignals(False)
+        self.color_picker_container.setVisible(True)
+        self.size_changed.emit()
+
+    def _delete_custom_color(self, color_hex: str):
+        self._delete_custom_color_silent(color_hex)
+        self.custom_colors_changed.emit(list(self.custom_colors))
+        if self.selected_color.upper() == color_hex.upper():
+            self.select_color(self.preset_colors[0][0])
+
+    def _delete_custom_color_silent(self, color_hex: str):
+        btn_to_remove = next(
+            (b for b in self._custom_swatch_btns if b.toolTip().upper() == color_hex.upper()), None
+        )
+        if btn_to_remove is None:
+            return
+        self.color_button_row.removeWidget(btn_to_remove)
+        btn_to_remove.deleteLater()
+        self._custom_swatch_btns = [b for b in self._custom_swatch_btns if b is not btn_to_remove]
+        self.color_buttons = [(b, c) for b, c in self.color_buttons if b is not btn_to_remove]
+        self.custom_colors = [c for c in self.custom_colors if c.upper() != color_hex.upper()]
+
     def load_config(self):
         if not self.config:
             self.select_color("#4285F4")
