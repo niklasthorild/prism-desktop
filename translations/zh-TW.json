@@ -77,6 +77,7 @@
   "button_editor.display_style_normal": "一般",
   "button_editor.display_style_gauge": "儀表",
   "button_editor.display_style_bar": "條形",
+  "button_editor.display_style_perimeter": "周邊",
   "button_editor.display_style_tooltip": "感測器數值的呈現方式",
   "button_editor.min_label": "最小值：",
   "button_editor.min_tooltip": "儀表/條形的最小值",

@@ -77,6 +77,7 @@
   "button_editor.display_style_normal": "Normale",
   "button_editor.display_style_gauge": "Indicatore",
   "button_editor.display_style_bar": "Barra",
+  "button_editor.display_style_perimeter": "Perimetro",
   "button_editor.display_style_tooltip": "Come viene visualizzato il valore del sensore",
   "button_editor.min_label": "Min:",
   "button_editor.min_tooltip": "Valore minimo per l'indicatore/barra",

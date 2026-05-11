@@ -77,6 +77,7 @@
   "button_editor.display_style_normal": "Normal",
   "button_editor.display_style_gauge": "Gauge",
   "button_editor.display_style_bar": "Bar",
+  "button_editor.display_style_perimeter": "Perimeter",
   "button_editor.display_style_tooltip": "How the sensor value is rendered",
   "button_editor.min_label": "Min:",
   "button_editor.min_tooltip": "Minimum value for the gauge/bar",

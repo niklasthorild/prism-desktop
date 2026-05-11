@@ -77,6 +77,7 @@
   "button_editor.display_style_normal": "通常",
   "button_editor.display_style_gauge": "ゲージ",
   "button_editor.display_style_bar": "バー",
+  "button_editor.display_style_perimeter": "外周",
   "button_editor.display_style_tooltip": "センサー値のレンダリング方法",
   "button_editor.min_label": "最小値：",
   "button_editor.min_tooltip": "ゲージ/バーの最小値",
