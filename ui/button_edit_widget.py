@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QColor, QFont, QPainter, QLinearGradient, QPen
 from ui.widgets.toggle_switch import ToggleSwitch
 from core.localization_manager import t
+from ui.styles import Typography, Dimensions
 
 
 class HueSlider(QWidget):
@@ -173,8 +174,6 @@ class ButtonEditWidget(QWidget):
             custom_btn_ring = "rgba(255, 255, 255, 0.3)"
             pill_bg = "rgba(255, 255, 255, 0.07)"
             
-        from ui.styles import Typography, Dimensions
-        
         self.setStyleSheet(f"""
             QWidget {{ 
                 font-family: {Typography.FONT_FAMILY_UI}; 
@@ -336,7 +335,7 @@ class ButtonEditWidget(QWidget):
         self.form.addRow(t("button_editor.label_label"), self.label_input)
 
         self.type_combo = QComboBox()
-        self.type_combo.addItems([td[0] for td in self.TYPE_DEFINITIONS])
+        self.type_combo.addItems([td[0] for td in self._get_type_definitions()])
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         self.form.addRow(t("button_editor.type_label"), self.type_combo)
 
@@ -1136,10 +1135,7 @@ class ButtonEditWidget(QWidget):
         if len(text) == 6:
             c = QColor(f"#{text}")
             if c.isValid():
-                self.selected_color = f"#{text.upper()}"
-                h = c.hsvHue()
-                if h >= 0:
-                    self.hue_slider.set_hue(h)
+                self.select_color(f"#{text.upper()}")
 
     def _on_save_custom_color(self):
         if not self.selected_color:
@@ -1309,13 +1305,10 @@ class ButtonEditWidget(QWidget):
 
     def save(self):
         """Save changes and emit config."""
-        entity_id = self.entity_combo.currentText().strip()
-        type_idx = self.type_combo.currentIndex()
-        
         new_config = self.config.copy() if self.config else {}
         new_config['slot'] = self.slot
         new_config['label'] = self.label_input.text().strip()
-        
+
         type_idx = self.type_combo.currentIndex()
         new_config['type'] = self.TYPE_DEFINITIONS[type_idx][1] if 0 <= type_idx < len(self.TYPE_DEFINITIONS) else 'switch'
         
@@ -1330,8 +1323,8 @@ class ButtonEditWidget(QWidget):
             new_config['show_album_art'] = self.show_album_art_check.isChecked()
             new_config['animated_bg'] = self.animated_bg_toggle.isChecked()
 
-        if new_config['type'] == 'switch':
-             new_config['service'] = f"{new_config['entity_id'].split('.')[0]}.{self.service_combo.currentText()}"
+        if new_config['type'] == 'switch' and '.' in new_config.get('entity_id', ''):
+            new_config['service'] = f"{new_config['entity_id'].split('.')[0]}.{self.service_combo.currentText()}"
         
         if new_config['type'] == 'widget':
             new_config['precision'] = self.precision_spin.value()
@@ -1431,7 +1424,8 @@ class ButtonEditWidget(QWidget):
     def on_shortcut_recorded(self, shortcut):
         if not self.record_btn.isChecked():
             return # Ignore if we aren't recording
-            
+
+        self.record_btn.setChecked(False)
         self.record_icon.setStyleSheet("background-color: white; border-radius: 6px;")
         self.shortcut_display.setText(shortcut.get('value', ''))
 
