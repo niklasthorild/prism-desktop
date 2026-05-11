@@ -5,7 +5,6 @@ desktop environments, including KDE/SNI where pystray's left-click
 delivery is unreliable.
 """
 
-import sys
 from io import BytesIO
 from typing import Callable, Optional
 
@@ -19,7 +18,6 @@ from PyQt6.QtCore import QObject, Qt, pyqtSignal, QRect
 class TraySignals(QObject):
     """Qt signals for tray icon events."""
     left_clicked = pyqtSignal()
-    settings_clicked = pyqtSignal()
     quit_clicked = pyqtSignal()
 
 
@@ -29,12 +27,10 @@ class TrayManager:
     def __init__(
         self,
         on_left_click: Optional[Callable] = None,
-        on_settings: Optional[Callable] = None,
         on_quit: Optional[Callable] = None,
         theme: str = 'dark',
     ):
         self.on_left_click = on_left_click
-        self.on_settings = on_settings
         self.on_quit = on_quit
         self.theme = theme
 
@@ -46,8 +42,6 @@ class TrayManager:
 
         if on_left_click:
             self.signals.left_clicked.connect(on_left_click)
-        if on_settings:
-            self.signals.settings_clicked.connect(on_settings)
         if on_quit:
             self.signals.quit_clicked.connect(on_quit)
 
@@ -161,6 +155,7 @@ class TrayManager:
         if self._tray:
             self._tray.hide()
             self._tray = None
+        self._menu = None
 
     # ------------------------------------------------------------------
     # Updates
@@ -174,10 +169,10 @@ class TrayManager:
         if self._menu:
             self._menu.setStyleSheet(self._menu_stylesheet())
 
-    def update_title(self, title: str):
+    def set_tooltip(self, text: str):
         """Update the tray icon tooltip."""
         if self._tray:
-            self._tray.setToolTip(title)
+            self._tray.setToolTip(text)
 
     def geometry(self) -> QRect:
         """Return the tray icon geometry when available."""

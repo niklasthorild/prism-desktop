@@ -312,7 +312,6 @@ class PrismDesktopApp(QObject):
         
         self.tray_manager = TrayManager(
             on_left_click=self._toggle_dashboard,
-            on_settings=self._show_settings,
             on_quit=self._quit,
             theme=self.theme_manager.get_effective_theme()
         )
