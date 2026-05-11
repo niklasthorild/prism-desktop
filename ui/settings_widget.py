@@ -246,6 +246,29 @@ class SettingsWidget(QWidget):
                 border: 1px solid {pill_border};
                 border-radius: 16px;
             }}
+
+            QPushButton#pinBtn {{
+                background-color: transparent;
+                border: 1px solid {colors['border']};
+                border-radius: 8px;
+                color: {colors['text']};
+                font-size: 18px;
+                min-width: 36px;
+                max-width: 36px;
+                min-height: 36px;
+                max-height: 36px;
+                padding: 0px;
+            }}
+            QPushButton#pinBtn:hover {{
+                border-color: {colors['accent']};
+                color: {colors['accent']};
+                background-color: transparent;
+            }}
+            QPushButton#pinBtn:checked {{
+                background-color: {colors['accent']};
+                border-color: {colors['accent']};
+                color: white;
+            }}
         """)
         
     def setup_ui(self):
@@ -477,15 +500,22 @@ class SettingsWidget(QWidget):
         self.update_label.linkActivated.connect(self._on_version_label_clicked)
         self._set_version_label_collapsed()
 
+        self.pin_btn = QPushButton(Icons.PIN)
+        self.pin_btn.setFont(get_mdi_font(16))
+        self.pin_btn.setObjectName("pinBtn")
+        self.pin_btn.setCheckable(True)
+        self.pin_btn.setFixedSize(36, 36)
+        self.pin_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.pin_btn.setToolTip(t("settings.appearance.pin_tooltip"))
+        self.pin_btn.clicked.connect(self._on_pin_toggled)
+
         update_row.addWidget(self.update_btn)
         update_row.addSpacing(10)
         update_row.addWidget(self.update_label)
         update_row.addStretch()
+        update_row.addWidget(self.pin_btn)
 
         self.form.addRow(t("settings.support.update_label"), update_row)
-
-
-        layout.addStretch()
         self._sync_form_label_widths()
         self._update_stylesheet()  # re-run now that toggles exist
 
@@ -565,7 +595,9 @@ class SettingsWidget(QWidget):
              
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
         self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
-        self.pin_window_check.setChecked(app.get('pin_window', False))
+        pinned = app.get('pin_window', False)
+        self.pin_window_check.setChecked(pinned)
+        self.pin_btn.setChecked(pinned)
         pages = app.get('pages', 3)
         self.pages_combo.setCurrentIndex(max(0, min(pages - 1, self.pages_combo.count() - 1)))
 
@@ -675,6 +707,10 @@ class SettingsWidget(QWidget):
 
 
 
+
+    def _on_pin_toggled(self, checked: bool):
+        self.pin_window_check.setChecked(checked)
+        self.config.setdefault('appearance', {})['pin_window'] = checked
 
     def toggle_recording(self, checked):
         if self._should_delegate_shortcuts_to_kde():

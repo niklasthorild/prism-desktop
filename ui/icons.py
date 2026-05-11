@@ -167,6 +167,9 @@ class Icons:
     LAN_CONNECT = "\U000F0318"         # mdi-lan-connect
     LAN_DISCONNECT = "\U000F0319"      # mdi-lan-disconnect
 
+    # Pin / window pinning
+    PIN = "\U000F0403"                 # mdi-pin
+
 # --- MDI Mapping Logic ---
 
 # --- MDI Mapping Logic ---
