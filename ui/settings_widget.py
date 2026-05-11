@@ -12,11 +12,11 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QFormLayout,
-    QGraphicsOpacityEffect, QFrame, QColorDialog, QApplication
+    QFrame, QColorDialog, QApplication
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer
-from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer, QRectF, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap, QConicalGradient, QPen, QBrush, QPainter
 from core.utils import SYSTEM_FONT
 from core.localization_manager import t, current_language, supported_languages, init_localization
 
@@ -40,14 +40,66 @@ except Exception:
     def supports_wayland_global_shortcuts():
         return False
 
+class PinButton(QPushButton):
+    """Pin toggle button with a one-shot border animation on each click."""
+
+    _EFFECT_COLORS = {
+        'Rainbow':        ["#4285F4", "#EA4335", "#FBBC05", "#34A853", "#4285F4"],
+        'Aurora Borealis':["#00C896", "#0078FF", "#8C00FF", "#0078FF", "#00C896"],
+        'Prism Shard':    ["#26C6DA", "#EC407A", "#FFCA28", "#CFD8DC", "#26C6DA"],
+        'Liquid Mercury': ["#37474F", "#78909C", "#CFD8DC", "#ECEFF1", "#CFD8DC", "#78909C", "#37474F"],
+    }
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self._progress = 0.0
+        self._colors = self._EFFECT_COLORS['Rainbow']
+        self._anim = QPropertyAnimation(self, b"anim_progress", self)
+        self._anim.setDuration(1500)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self.clicked.connect(self._play)
+
+    def _get_progress(self): return self._progress
+    def _set_progress(self, v):
+        self._progress = v
+        self.update()
+    anim_progress = pyqtProperty(float, _get_progress, _set_progress)
+
+    def set_effect(self, effect: str):
+        self._colors = self._EFFECT_COLORS.get(effect)  # None → no animation
+
+    def _play(self):
+        self._anim.stop()
+        self._anim.start()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._progress > 0.0 and self._colors:
+            opacity = 1.0 if self._progress <= 0.8 else (1.0 - self._progress) / 0.2
+            effect = next((k for k, v in self._EFFECT_COLORS.items() if v is self._colors), '')
+            speed = 0.9 if effect == 'Prism Shard' else (1.2 if effect == 'Liquid Mercury' else 1.5)
+            angle = self._progress * 360.0 * speed
+            rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+            gradient = QConicalGradient(rect.center(), angle)
+            for i, color in enumerate(self._colors):
+                gradient.setColorAt(i / (len(self._colors) - 1), QColor(color))
+            pen = QPen(QBrush(gradient), 2)
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setOpacity(opacity)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(rect, 6, 6)
+            painter.end()
+
+
 class SettingsWidget(QWidget):
     """
     Main settings screen.
     Uses QFormLayout for clean alignment of labels and fields.
     """
-    
-    settings_saved = pyqtSignal(dict)
-    back_requested = pyqtSignal()
     
     settings_saved = pyqtSignal(dict)
     back_requested = pyqtSignal()
@@ -60,12 +112,8 @@ class SettingsWidget(QWidget):
         self.input_manager = input_manager
         
         self._test_thread: Optional[ConnectionTestThread] = None
-        self._opacity = 1.0
-        # Opacity effect for animations - DISABLED FOR DEBUGGING
-        # self._opacity_effect = QGraphicsOpacityEffect(self)
-        # self._opacity_effect.setOpacity(1.0)
-        # self.setGraphicsEffect(self._opacity_effect)
-        
+        self._update_thread = None
+
         self.setup_ui()
         self.load_config()
         self._update_shortcut_controls()
@@ -74,17 +122,6 @@ class SettingsWidget(QWidget):
         if self.input_manager:
             self.input_manager.recorded.connect(self.on_shortcut_recorded)
         
-    def get_opacity(self):
-        return self._opacity
-    
-    def set_opacity(self, val):
-        self._opacity = val
-        if hasattr(self, '_opacity_effect'):
-            self._opacity_effect.setOpacity(val)
-        # self._opacity_effect.setOpacity(val)
-        
-    opacity = pyqtProperty(float, get_opacity, set_opacity)
-    
     def _update_stylesheet(self):
         """Build and apply theme-dependent stylesheet."""
         if self.theme_manager:
@@ -250,13 +287,13 @@ class SettingsWidget(QWidget):
             QPushButton#pinBtn {{
                 background-color: transparent;
                 border: 1px solid {colors['border']};
-                border-radius: 8px;
+                border-radius: 6px;
                 color: {colors['text']};
-                font-size: 18px;
-                min-width: 36px;
-                max-width: 36px;
-                min-height: 36px;
-                max-height: 36px;
+                font-size: 14px;
+                min-width: 28px;
+                max-width: 28px;
+                min-height: 28px;
+                max-height: 28px;
                 padding: 0px;
             }}
             QPushButton#pinBtn:hover {{
@@ -500,14 +537,15 @@ class SettingsWidget(QWidget):
         self.update_label.linkActivated.connect(self._on_version_label_clicked)
         self._set_version_label_collapsed()
 
-        self.pin_btn = QPushButton(Icons.PIN)
+        self.pin_btn = PinButton(Icons.PIN)
         self.pin_btn.setFont(get_mdi_font(16))
         self.pin_btn.setObjectName("pinBtn")
         self.pin_btn.setCheckable(True)
-        self.pin_btn.setFixedSize(36, 36)
+        self.pin_btn.setFixedSize(28, 28)
         self.pin_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.pin_btn.setToolTip(t("settings.appearance.pin_tooltip"))
         self.pin_btn.clicked.connect(self._on_pin_toggled)
+        self.border_effect_combo.currentTextChanged.connect(self.pin_btn.set_effect)
 
         update_row.addWidget(self.update_btn)
         update_row.addSpacing(10)
@@ -588,15 +626,16 @@ class SettingsWidget(QWidget):
              self.border_effect_combo.setCurrentIndex(0)
              self.border_effect_combo.set_effect("Rainbow", animate=False)
              
-        button_style = app.get('button_style', 'Gradient')
-        style_idx = self.button_style_combo.findText(button_style)
-        if style_idx >= 0:
-            self.button_style_combo.setCurrentIndex(style_idx)
+        button_style_map = {'gradient': 0, 'flat': 1}
+        self.button_style_combo.setCurrentIndex(
+            button_style_map.get(app.get('button_style', 'gradient'), 0)
+        )
              
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
         self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
         pinned = app.get('pin_window', False)
         self.pin_window_check.setChecked(pinned)
+        self.pin_btn.set_effect(app.get('border_effect', 'Rainbow'))
         self.pin_btn.setChecked(pinned)
         pages = app.get('pages', 3)
         self.pages_combo.setCurrentIndex(max(0, min(pages - 1, self.pages_combo.count() - 1)))
@@ -643,7 +682,7 @@ class SettingsWidget(QWidget):
             'tray_position': tray_position_map.get(self.tray_position_combo.currentIndex(), 'bottom'),
             'temperature_unit': temperature_unit_map.get(self.temperature_unit_combo.currentIndex(), 'celsius'),
             'border_effect': self.border_effect_combo.currentText(),
-            'button_style': self.button_style_combo.currentText(),
+            'button_style': {0: 'gradient', 1: 'flat'}.get(self.button_style_combo.currentIndex(), 'gradient'),
             'show_dimming': self.show_dimming_check.isChecked(),
             'glass_ui': self.glass_ui_check.isChecked(),
             'pin_window': self.pin_window_check.isChecked(),
@@ -836,6 +875,7 @@ class SettingsWidget(QWidget):
 
         if self._test_thread and self._test_thread.isRunning():
             self._test_thread.quit()
+            self._test_thread.wait(500)
 
         # Run connection check in background to avoid freezing UI
         self._test_thread = ConnectionTestThread(url, token)
@@ -932,4 +972,7 @@ class SettingsWidget(QWidget):
         if self._test_thread and self._test_thread.isRunning():
             self._test_thread.quit()
             self._test_thread.wait(500)
+        if self._update_thread and self._update_thread.isRunning():
+            self._update_thread.quit()
+            self._update_thread.wait(500)
 

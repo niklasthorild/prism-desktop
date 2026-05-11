@@ -1673,9 +1673,6 @@ class Dashboard(QWidget):
 
     def _on_settings_saved(self, config: dict):
         """Handle settings saved - emit signal and return to grid."""
-        if self.settings_widget:
-            self.settings_widget.set_opacity(1.0) # Reset in case
-            
         # Update local config immediately
         app = config.get('appearance', {})
         self._border_effect = app.get('border_effect', 'Rainbow')
