@@ -11,13 +11,13 @@
       forAllSystems = f:
         nixpkgs.lib.genAttrs systems
           (system: f (import nixpkgs { inherit system; }));
-      buildCommit = "fc29f6c84a90";
+      buildCommit = "11359abaa551";
       buildDirty = false;
     in
     {
       packages = forAllSystems (pkgs:
         let
-          version = "1.5";
+          version = "1.5.1";
 
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
@@ -42,7 +42,7 @@
               owner = "lasselian";
               repo = "prism-desktop";
               rev = version;
-              hash = "sha256-G+RFAieoNOn1H98W3DCX5bYWQxBjJppufpI+Msc9kBQ=";
+              hash = "sha256-UUXgwB5g8rzWwMs6vo6F/4KCnqNTGCMmEPjg2v7Fcuw=";
             };
 
             nativeBuildInputs = [
@@ -102,7 +102,7 @@
               runHook preInstall
 
               mkdir -p $out/share/prism-desktop
-              cp -r core services ui $out/share/prism-desktop/
+              cp -r core services ui translations $out/share/prism-desktop/
               cp main.py icon.png materialdesignicons-webfont.ttf mdi_mapping.json \
                 LICENSE README.md \
                 $out/share/prism-desktop/
