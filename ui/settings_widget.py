@@ -729,7 +729,7 @@ class SettingsWidget(QWidget):
                 dashboard = self.window()
                 if hasattr(dashboard, 'show_toast'):
                     from ui.notifications import notify_geoclue2_missing
-                    notify_geoclue2_missing(dashboard, cmd)
+                    QTimer.singleShot(350, lambda: notify_geoclue2_missing(dashboard, cmd))
             else:
                 ensure_desktop_file()
 
