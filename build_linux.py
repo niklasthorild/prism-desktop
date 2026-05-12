@@ -126,6 +126,7 @@ def build_binary(base_dir):
         '--add-data=materialdesignicons-webfont.ttf:.',
         '--add-data=mdi_mapping.json:.',
         '--add-data=icon.png:.',
+        '--add-data=translations:translations',
         '--icon=icon.png',
         '--clean',
     ]

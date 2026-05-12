@@ -85,6 +85,11 @@ def build():
     if mapping_path.exists():
         cmd.extend(["--add-data", f"{mapping_path};."])
 
+    # Add translations folder
+    translations_path = base_dir / "translations"
+    if translations_path.exists():
+        cmd.extend(["--add-data", f"{translations_path};translations"])
+
     write_build_info(base_dir)
         
     # Main script
