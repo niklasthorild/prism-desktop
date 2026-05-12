@@ -24,3 +24,6 @@ core/_generated_build_info.py
 # Virtual Environments
 venv/
 env/
+
+# Runtime
+prism.pid
