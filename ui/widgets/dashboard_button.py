@@ -418,7 +418,7 @@ class DashboardButton(QFrame):
         """Sweep gauge/perimeter/sun from zero to their current value."""
         style = self.config.get('display_style', '')
         btn_type = self.config.get('type', '')
-        if self.config.get('entry_animation', False):
+        if self.config.get('entry_animation', True):
             if style == 'gauge' and self._sensor_fraction is not None:
                 self.gauge_anim.stop()
                 self._gauge_fraction = 0.0

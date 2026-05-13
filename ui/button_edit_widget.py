@@ -410,7 +410,7 @@ class ButtonEditWidget(QWidget):
 
         self.entry_animation_toggle = ToggleSwitch(t("button_editor.entry_animation_toggle"))
         self.entry_animation_toggle.setToolTip(t("button_editor.entry_animation_tooltip"))
-        self.entry_animation_toggle.setChecked(False)
+        self.entry_animation_toggle.setChecked(True)
         self.form.addRow("", self.entry_animation_toggle)
         self.form.setRowVisible(self.entry_animation_toggle, False)
 
@@ -1262,7 +1262,7 @@ class ButtonEditWidget(QWidget):
         self.display_style_combo.setCurrentIndex(idx)
         self.sensor_min_spin.setValue(float(self.config.get('sensor_min', 0.0)))
         self.sensor_max_spin.setValue(float(self.config.get('sensor_max', 100.0)))
-        self.entry_animation_toggle.setChecked(self.config.get('entry_animation', False))
+        self.entry_animation_toggle.setChecked(self.config.get('entry_animation', True))
         
         # Camera settings (Removed - always stream)
         # camera_mode = self.config.get('camera_mode', 'picture')
