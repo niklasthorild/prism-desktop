@@ -177,6 +177,6 @@
   "dashboard_button.media.now_playing": "Wird abgespielt: {info}",
   "notification_banner.yes": "Ja",
   "notification_banner.no": "Nein",
-  "sun.until_sunset": "BIS SONNENUNTERGANG",
-  "sun.until_sunrise": "BIS SONNENAUFGANG"
+  "sun.until_sunset": "SONNENUNTERGANG",
+  "sun.until_sunrise": "SONNENAUFGANG"
 }
