@@ -681,7 +681,7 @@ class SettingsWidget(QWidget):
             'tray_position': tray_position_map.get(self.tray_position_combo.currentIndex(), 'bottom'),
             'temperature_unit': temperature_unit_map.get(self.temperature_unit_combo.currentIndex(), 'celsius'),
             'border_effect': self.border_effect_combo.currentText(),
-            'button_style': {0: 'gradient', 1: 'flat'}.get(self.button_style_combo.currentIndex(), 'gradient'),
+            'button_style': {0: 'Gradient', 1: 'Flat'}.get(self.button_style_combo.currentIndex(), 'Gradient'),
             'show_dimming': self.show_dimming_check.isChecked(),
             'glass_ui': self.glass_ui_check.isChecked(),
             'pin_window': self._pin_window,

@@ -126,7 +126,7 @@ class Dashboard(QWidget):
         self._border_effect = app_config.get('border_effect', 'Rainbow')
         self._show_dimming = app_config.get('show_dimming', False)
         self._glass_ui = app_config.get('glass_ui', False) and not sys.platform.startswith('linux')
-        self._button_style = app_config.get('button_style', 'Gradient')
+        self._button_style = app_config.get('button_style', 'Gradient').capitalize()
         self._temperature_unit = app_config.get('temperature_unit', 'celsius')
         
         # Propagate border effect to overlay manager
@@ -1699,11 +1699,11 @@ class Dashboard(QWidget):
             self._glass_refresh_timer.stop()
             self._set_capture_exclusion(False)
             self._glass_bg_pixmap = None
-        self._button_style = app.get('button_style', 'Gradient')
+        self._button_style = app.get('button_style', 'Gradient').capitalize()
         self._temperature_unit = app.get('temperature_unit', 'celsius')
-        
+
         self._live_dimming = True
-        
+
         # Propagate to buttons
         for btn in self.buttons:
             btn.set_border_effect(self._border_effect)
