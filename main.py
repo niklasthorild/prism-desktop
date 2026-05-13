@@ -106,9 +106,6 @@ class PrismDesktopApp(QObject):
         # Location reporting (Windows only)
         self._location_task: Optional[asyncio.Task] = None
         
-        # Helper threads (legacy/transition)
-        
-        
         # Cache for entity list (for editor)
         self._available_entities: list[dict] = []
         
@@ -440,6 +437,13 @@ class PrismDesktopApp(QObject):
                 print(f"Camera loop error: {e}")
                 await asyncio.sleep(10)
 
+    @staticmethod
+    def _put_cache(cache: dict, key, value, max_size: int = 20) -> None:
+        """Insert into a bounded dict, evicting the oldest entry when full."""
+        cache[key] = value
+        while len(cache) > max_size:
+            cache.pop(next(iter(cache)))
+
     async def _fetch_camera_image(self, entity_id: str):
         """Fetch and update single camera image with caching."""
         # Check cache validity (immediate feedback)
@@ -454,7 +458,7 @@ class PrismDesktopApp(QObject):
              pixmap = QPixmap()
              if pixmap.loadFromData(data):
                  # Update Cache
-                 self._camera_cache[entity_id] = (time.time(), pixmap)
+                 self._put_cache(self._camera_cache, entity_id, (time.time(), pixmap))
                  # Update UI
                  if self.dashboard:
                      self.dashboard.update_camera_image(entity_id, pixmap)
@@ -721,8 +725,9 @@ class PrismDesktopApp(QObject):
                     if pixmap and not pixmap.isNull():
                          self.dashboard.update_media_art(eid, pixmap)
             
-            # Force full state refresh
-            self.fetch_initial_states()
+            # Re-apply known states to newly built buttons without an HTTP round-trip
+            for eid, state in self.dashboard._entity_states.items():
+                self.on_state_changed(eid, state)
 
     @pyqtSlot(int)
     def on_clear_button_requested(self, slot):
@@ -988,14 +993,14 @@ class PrismDesktopApp(QObject):
                     
         entity_ids = list(set(entity_ids)) # Remove duplicates
         if not entity_ids: return
-        
-        # Sync via API
-        states = await self.ha_client.get_entities()
-        state_map = {s['entity_id']: s for s in states}
-        
-        for eid in entity_ids:
-            if eid in state_map:
-                self.on_state_changed(eid, state_map[eid])
+
+        results = await asyncio.gather(
+            *[self.ha_client.get_state(eid) for eid in entity_ids],
+            return_exceptions=True,
+        )
+        for eid, state in zip(entity_ids, results):
+            if isinstance(state, dict):
+                self.on_state_changed(eid, state)
                 
     async def _fetch_single_state(self, entity_id):
         state = await self.ha_client.get_state(entity_id)
@@ -1022,7 +1027,7 @@ class PrismDesktopApp(QObject):
         if data:
             pixmap = QPixmap()
             if pixmap.loadFromData(data):
-                self._media_art_cache[entity_id] = (pic_path, pixmap)
+                self._put_cache(self._media_art_cache, entity_id, (pic_path, pixmap))
                 if self.dashboard:
                     self.dashboard.update_media_art(entity_id, pixmap)
 

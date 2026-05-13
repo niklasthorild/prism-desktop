@@ -11,6 +11,8 @@ import logging
 import aiohttp
 from typing import Optional
 
+from core.build_info import APP_VERSION
+
 logger = logging.getLogger(__name__)
 
 # Prism's app identifier (stable — must not change between versions)
@@ -76,7 +78,7 @@ async def register_mobile_app(
         "device_id": device_id,
         "app_id": APP_ID,
         "app_name": APP_NAME,
-        "app_version": "1.0",
+        "app_version": APP_VERSION,
         "device_name": device_name,
         "manufacturer": MANUFACTURER,
         "model": MODEL,
@@ -176,7 +178,7 @@ async def _update_registration(ha_url: str, webhook_id: str) -> bool:
     payload = {
         "type": "update_registration",
         "data": {
-            "app_version": "1.0",
+            "app_version": APP_VERSION,
             "device_name": _get_device_name(),
             "manufacturer": MANUFACTURER,
             "model": MODEL,
