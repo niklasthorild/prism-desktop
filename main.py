@@ -697,8 +697,8 @@ class PrismDesktopApp(QObject):
             sx = source_btn.get('span_x', 1)
             sy = source_btn.get('span_y', 1)
             
-            valid_tgt_col = min(tgt_col, cols - sx)
-            valid_tgt_row = min(tgt_row, self.dashboard._rows - sy) # Ensure we valid row check too if needed
+            valid_tgt_col = max(0, min(tgt_col, cols - sx))
+            valid_tgt_row = max(0, min(tgt_row, self.dashboard._rows - sy))
             
             source_btn['row'] = valid_tgt_row
             source_btn['col'] = valid_tgt_col
