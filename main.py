@@ -414,10 +414,12 @@ class PrismDesktopApp(QObject):
                                 cam_entity_id = btn.config.get('printer_camera_entity')
                                 # Only pull the camera feed if the button is large enough to display it (2x2+)
                                 # OR if the 3D printer overlay is currently active and belongs to this button
+                                om = self.dashboard.overlay_manager
                                 is_active_overlay = (
-                                    self.dashboard.overlay_manager.printer_overlay.isVisible() and
-                                    self.dashboard.overlay_manager._active_printer_config and
-                                    self.dashboard.overlay_manager._active_printer_config.get('printer_camera_entity') == cam_entity_id
+                                    om is not None and
+                                    om.printer_overlay.isVisible() and
+                                    om._active_printer_config and
+                                    om._active_printer_config.get('printer_camera_entity') == cam_entity_id
                                 )
                                 
                                 if cam_entity_id and (is_active_overlay or (btn.span_x >= 2 and btn.span_y >= 2)):
