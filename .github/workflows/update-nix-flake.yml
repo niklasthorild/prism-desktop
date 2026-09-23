@@ -9,6 +9,11 @@ on:
         description: Release tag to package, for example 1.7
         required: true
         type: string
+      dry_run:
+        description: Validate without committing, pushing, or opening a PR
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: nix-flake-update-${{ github.event.release.tag_name || inputs.version }}
@@ -27,6 +32,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       NIX_CONFIG: experimental-features = nix-command flakes
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.version }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 
     steps:
       - name: Check out main
@@ -51,7 +57,7 @@ jobs:
           fi
 
           branch="flake/update-$version"
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+          if [[ "$DRY_RUN" != "true" ]] && git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
             echo "Remote branch $branch already exists; refusing to overwrite it." >&2
             exit 1
           fi
@@ -105,6 +111,7 @@ jobs:
         run: nix build .#default --no-link --print-build-logs
 
       - name: Commit and push update branch
+        if: env.DRY_RUN != 'true'
         env:
           VERSION: ${{ steps.release.outputs.version }}
           BRANCH: ${{ steps.release.outputs.branch }}
@@ -120,7 +127,15 @@ jobs:
           git commit -m "flake: update to $VERSION"
           git push --set-upstream origin "$BRANCH"
 
+      - name: Review dry-run diff
+        if: env.DRY_RUN == 'true'
+        run: |
+          git diff --check
+          git diff --stat
+          git diff -- flake.nix flake.lock
+
       - name: Create pull request
+        if: env.DRY_RUN != 'true'
         env:
           VERSION: ${{ steps.release.outputs.version }}
           BRANCH: ${{ steps.release.outputs.branch }}
