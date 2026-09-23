@@ -1,0 +1,145 @@
+name: Update Nix flake
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to package, for example 1.7
+        required: true
+        type: string
+
+concurrency:
+  group: nix-flake-update-${{ github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update and test Nix flake
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NIX_CONFIG: experimental-features = nix-command flakes
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.version }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Resolve release and source hash
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${RELEASE_TAG#v}"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "Release tag is not a stable semantic version: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          branch="flake/update-$version"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Remote branch $branch already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+
+          git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          build_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+          source_hash="$(nix store prefetch-file --json --unpack --hash-type sha256 \
+            "https://github.com/lasselian/prism-desktop/archive/$RELEASE_TAG.tar.gz" \
+            | jq -r .hash)"
+
+          {
+            echo "version=$version"
+            echo "branch=$branch"
+            echo "build_commit=${build_commit:0:12}"
+            echo "source_hash=$source_hash"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update flake sources
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          BUILD_COMMIT: ${{ steps.release.outputs.build_commit }}
+          SOURCE_HASH: ${{ steps.release.outputs.source_hash }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path("flake.nix")
+          text = path.read_text()
+
+          replacements = [
+              (r'(buildCommit = ")[^"]+(";)', rf'\g<1>{os.environ["BUILD_COMMIT"]}\g<2>'),
+              (r'(version = ")[^"]+(";)', rf'\g<1>{os.environ["VERSION"]}\g<2>'),
+              (r'(hash = ")[^"]+(";)', rf'\g<1>{os.environ["SOURCE_HASH"]}\g<2>'),
+          ]
+          for pattern, replacement in replacements:
+              text, count = re.subn(pattern, replacement, text, count=1)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one match for {pattern!r}")
+          path.write_text(text)
+          PY
+
+      - name: Refresh nixpkgs lock
+        run: nix flake lock --update-input nixpkgs
+
+      - name: Check flake
+        run: nix flake check --no-update-lock-file
+
+      - name: Build package
+        run: nix build .#default --no-link --print-build-logs
+
+      - name: Commit and push update branch
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          BRANCH: ${{ steps.release.outputs.branch }}
+        run: |
+          set -euo pipefail
+          git switch -c "$BRANCH"
+          git diff --check
+          git diff --exit-code -- . ':!flake.nix' ':!flake.lock' || {
+            echo "Unexpected files changed by the workflow" >&2
+            exit 1
+          }
+          git add flake.nix flake.lock
+          git commit -m "flake: update to $VERSION"
+          git push --set-upstream origin "$BRANCH"
+
+      - name: Create pull request
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          BRANCH: ${{ steps.release.outputs.branch }}
+        run: |
+          set -euo pipefail
+          if gh pr list --state open --head "$BRANCH" --json number --jq 'length' | grep -q '^0$'; then
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "flake: update to $VERSION" \
+              --body "## Summary
+
+- update the flake version to $VERSION
+- refresh flake.lock to the current nixos-unstable input
+
+## Testing performed
+
+- nix flake check
+- nix build .#default --no-link --print-build-logs"
+          else
+            echo "An open PR already exists for $BRANCH; leaving it unchanged."
+          fi
