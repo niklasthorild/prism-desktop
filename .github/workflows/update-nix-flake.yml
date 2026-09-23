@@ -145,19 +145,23 @@ jobs:
         run: |
           set -euo pipefail
           if gh pr list --state open --head "$BRANCH" --json number --jq 'length' | grep -q '^0$'; then
+            body="$(cat <<EOF
+          ## Summary
+
+          - update the flake version to $VERSION
+          - refresh flake.lock to the current nixos-unstable input
+
+          ## Testing performed
+
+          - nix flake check
+          - nix build .#default --no-link --print-build-logs
+          EOF
+          )"
             gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "flake: update to $VERSION" \
-              --body "## Summary
-
-- update the flake version to $VERSION
-- refresh flake.lock to the current nixos-unstable input
-
-## Testing performed
-
-- nix flake check
-- nix build .#default --no-link --print-build-logs"
+              --body "$body"
           else
             echo "An open PR already exists for $BRANCH; leaving it unchanged."
           fi
