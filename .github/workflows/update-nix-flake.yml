@@ -1,11 +1,10 @@
 name: Update Nix flake
 
 on:
-  release:
-    types: [published]
   push:
-    branches:
-      - automation/nix-flake-release-test
+    tags:
+      - 'v*'
+      - '[0-9]*'
   workflow_dispatch:
     inputs:
       version:
@@ -19,7 +18,7 @@ on:
         type: boolean
 
 concurrency:
-  group: nix-flake-update-${{ github.event.release.tag_name || inputs.version || 'test' }}
+  group: nix-flake-update-${{ github.ref_name || inputs.version }}
   cancel-in-progress: false
 
 permissions:
@@ -29,12 +28,11 @@ permissions:
 jobs:
   update:
     name: Update and test Nix flake
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     env:
       NIX_CONFIG: experimental-features = nix-command flakes
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.version || '1.6' }}
-      DRY_RUN: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run) || false }}
+      RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
 
     steps:
       - name: Check out main
