@@ -3,6 +3,9 @@ name: Update Nix flake
 on:
   release:
     types: [published]
+  push:
+    branches:
+      - automation/nix-flake-release-test
   workflow_dispatch:
     inputs:
       version:
@@ -26,13 +29,13 @@ permissions:
 jobs:
   update:
     name: Update and test Nix flake
-    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
       NIX_CONFIG: experimental-features = nix-command flakes
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.version }}
-      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.version || '1.6' }}
+      DRY_RUN: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run) || false }}
 
     steps:
       - name: Check out main
